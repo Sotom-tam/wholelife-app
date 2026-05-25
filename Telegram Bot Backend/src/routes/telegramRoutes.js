@@ -1,5 +1,5 @@
 import {Router} from "express"
-import { handleTelegramUpdates } from "../controller/telegramController"
+import { handleTelegramUpdates } from "../controller/telegramController.js"
 
 const router=Router()
 
