@@ -1,0 +1,26 @@
+{
+  "name": "telegram-bot-backend",
+  "version": "1.0.0",
+  "description": "This is the whole life system telegram backend server, that will handle responses for the telegram bot. This may also serve as the foundation for the main backend",
+  "homepage": "https://github.com/Sotom-tam/wholelife-app#readme",
+  "bugs": {
+    "url": "https://github.com/Sotom-tam/wholelife-app/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sotom-tam/wholelife-app.git"
+  },
+  "license": "ISC",
+  "author": "Sotom Tamunowari",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "telegraf": "^4.16.3"
+  }
+}
