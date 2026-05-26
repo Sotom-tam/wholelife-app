@@ -5,7 +5,7 @@ import cors from "cors";
 import { session,Scenes } from "telegraf";
 
 import telegramRoutes from "./src/routes/telegramRoutes.js"
-import {onboardingScene} from "./src/config/bot.js"
+import bot,{onboardingScene} from "./src/config/bot.js"
 
 const app=express()
 

@@ -15,30 +15,6 @@ export const onboardingScene= new Scenes.WizardScene(
         return ctx.wizard.next()
     },
     async function step1(ctx){
-        //first I check what the user picked with ctx.btnquery.callback
-        if(!ctx.callbackQuery){
-            await ctx.reply(`
-                Is that what you want be to call you?
-                \nIf not please click Yes or No Above
-            `)
-            return
-        }else{
-             console.log("This is what contect callback query data looks like:",ctx.callbackQuery.data)
-            //Stops the loading on button
-            await ctx.answerCbQuery()
-
-            //Checking user answer
-            if(ctx.callbackQuery.data==="action_yes"){
-                ctx.wizard.state.name=ctx.from.first_name
-                console.log("want to see the state object:",ctx.wizard.state,ctx.wizard.state.name)
-                await ctx.reply(`Okay ${ctx.from.first_name}`)
-                return ctx.wizard.next()
-            }else{//User clicked No
-                await ctx.reply(`Then What should I call you?`)
-                return
-            }
-        }
-        
         //checking if it was a message text, so user answered instead
         if(ctx.message?.text){
             ctx.wizard.state.name = ctx.message.text
@@ -49,6 +25,29 @@ export const onboardingScene= new Scenes.WizardScene(
             )
             return ctx.wizard.next()
         }
+        //first I check what the user picked with ctx.btnquery.callback
+        if(!ctx.callbackQuery){
+            await ctx.reply(`
+                Is that what you want be to call you?
+                \nIf not please click Yes or No Above
+            `)
+            return
+        }
+        console.log("This is what contect callback query data looks like:",ctx.callbackQuery.data)
+        //Stops the loading on button
+        await ctx.answerCbQuery()
+
+        //Checking user answer
+        if(ctx.callbackQuery.data==="action_yes"){
+            ctx.wizard.state.name=ctx.from.first_name
+            console.log("want to see the state object:",ctx.wizard.state,ctx.wizard.state.name)
+            await ctx.reply(`Okay ${ctx.from.first_name}`)
+            return ctx.wizard.next()
+        }else{//User clicked No
+            await ctx.reply(`Then What should I call you?`)
+            return
+        }
+        
     },
     async function step2(ctx) {
         if (!ctx.message?.text) return
