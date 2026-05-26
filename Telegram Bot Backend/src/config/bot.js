@@ -46,7 +46,10 @@ export const onboardingScene= new Scenes.WizardScene(
         if(ctx.callbackQuery.data==="action_yes"){
             ctx.wizard.state.name=ctx.from.first_name
             console.log("want to see the state object:",ctx.wizard.state,ctx.wizard.state.name)
-            await ctx.reply(`Okay ${ctx.from.first_name}`)
+            await ctx.reply(`Okay ${ctx.from.first_name}
+                \nWhat is your goal?
+                \nTo answer this more clearly you should thinking deeply about the person you want to be
+                \nAbout how this goal will get you closer to becoming that person`)
             return ctx.wizard.next()
         }else{//User clicked No
             await ctx.reply(`Then What should I call you?`)
