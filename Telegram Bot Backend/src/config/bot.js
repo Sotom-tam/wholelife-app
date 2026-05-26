@@ -1,7 +1,12 @@
 //My first bot
-import { Telegraf,Markup,Scenes } from "telegraf";
+import { Telegraf,Markup,Scenes,session} from "telegraf";
 
+//Telegram bot set up
 const bot= new Telegraf(process.env.BOT_TOKEN)
+// 1. Register session middleware (Required for scenes)
+bot.use(session());
+
+//Defining Onboarding Scene
 export const onboardingScene= new Scenes.WizardScene(
     'onboarding',//Scene ID,
     async function step0(ctx) {
@@ -68,6 +73,11 @@ export const onboardingScene= new Scenes.WizardScene(
         return ctx.scene.leave()      
     }
 )
+
+// 2. Register the stage manager with your wizard scene
+const stage = new Scenes.Stage([onboardingScene]);
+bot.use(stage.middleware());
+
 //Registering My bot Observers
 
 
