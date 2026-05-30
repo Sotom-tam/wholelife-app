@@ -38,38 +38,141 @@ const domainKeyboard = Markup.inlineKeyboard([
     [Markup.button.callback("✍️ Something else", "domain_other")],
 ]);
 
+// ─── MVA Introductions by domain ──────────────────────────────────────────────
+const mvaIntros = {
+    domain_health: [
+        `Here's what the research actually says: the people who get healthier aren't the ones who go hardest — they're the ones who show up most.\n\nThree tiny starting points based on what you shared:`,
+        `You don't need a new gym routine. You need one small thing you'll actually do.\n\nPick the one that feels most doable — not most impressive:`,
+        `The gap between who you are and who you're becoming? It's crossed one small action at a time.\n\nHere are three to choose from:`,
+    ],
+    domain_mind: [
+        `Mental clarity isn't built in big breakthroughs — it's built in quiet, consistent moments.\n\nThree small ones to choose from:`,
+        `You don't need to overhaul your whole routine. You need one thing that starts to shift the pattern.\n\nPick the one that feels most real right now:`,
+        `Here's the thing about focus — you can't force it, but you can create the conditions for it.\n\nThree small ways to start:`,
+    ],
+    domain_relationships: [
+        `Connection isn't built in grand gestures. It's built in small, consistent moments of showing up.\n\nThree tiny ways to start:`,
+        `The people who matter to you don't need more of your time — they need more of your presence.\n\nPick the one that feels most doable:`,
+        `Relationships change slowly, then suddenly. It starts with one small thing done consistently.\n\nThree options:`,
+    ],
+    domain_rest: [
+        `Rest isn't a reward for finishing everything. It's what makes everything else possible.\n\nThree small ways to start reclaiming it:`,
+        `You can't think your way into better sleep or more energy — you have to build toward it.\n\nOne small action at a time:`,
+        `The goal isn't a perfect sleep routine. It's one small shift that your body actually notices.\n\nThree to choose from:`,
+    ],
+    domain_spiritual: [
+        `You don't find stillness by waiting for a quiet moment. You create it — even in a noisy life.\n\nThree small ways to start:`,
+        `Inner work doesn't need hours. It needs consistency. Even five minutes of intention changes something.\n\nThree options:`,
+        `The practice isn't the big retreat or the perfect morning. It's the small thing you actually do.\n\nPick one:`,
+    ],
+    domain_other: [
+        `Big changes start embarrassingly small. That's not a consolation — that's how it actually works.\n\nThree tiny starting points:`,
+        `The version of you who has this handled? They started exactly where you are now.\n\nPick the one that feels most doable:`,
+        `You don't need to figure it all out. You just need one small action you can do today.\n\nThree options:`,
+    ],
+};
+
+const getRandomMvaIntro = (domain) => {
+    const options = mvaIntros[domain] || mvaIntros["domain_other"];
+    return options[Math.floor(Math.random() * options.length)];
+};
+
 // ─── MVA suggestions by domain ──────────────────────────────────────────────
 const mvaSuggestions = {
     domain_health: [
-        "Drink a glass of water first thing every morning",
-        "Put on your trainers after breakfast — even if you don't go further",
-        "Do 5 minutes of movement before lunch",
+        // Movement focused
+        "Do 10 minutes of movement after waking up — walk, stretch, anything counts",
+        "Put your workout clothes out the night before so they're waiting for you",
+        "Take a 15-minute walk after one meal every day",
+        // Nutrition focused  
+        "Drink a full glass of water before every meal",
+        "Add one vegetable or fruit to one meal each day — just one",
+        // General body care
+        "Sleep and wake at the same time every day — even weekends",
+        "Take 5 deep breaths before eating anything — slows you down, changes choices",
     ],
     domain_mind: [
-        "Write 3 sentences in a journal before bed",
-        "Put your phone face-down for the first 30 minutes of your day",
-        "Read one page of a book before you sleep",
+        "Write 3 sentences about how you're feeling before you open any app in the morning",
+        "Put your phone face-down for the first 30 minutes after waking",
+        "Read one page of a real book before bed — just one",
+        "At the end of each day, write one thing that went well",
+        "Take a 10-minute walk with no headphones — just think",
     ],
     domain_relationships: [
-        "Send one voice note or text to someone you care about each day",
-        "Ask someone 'how are you really doing?' this week",
-        "Put away your phone during one meal a day",
+        "Send one voice note to someone you care about each day — not a text, a voice note",
+        "Put your phone away during one full meal every day",
+        "Ask one person 'how are you really doing?' this week and actually listen",
+        "Tell someone you appreciate them today — specifically, not generally",
+        "Schedule one real conversation with someone you've been meaning to catch up with",
     ],
     domain_rest: [
-        "Set a consistent bedtime alarm — even on weekends",
-        "Do 5 minutes of slow breathing before sleep",
-        "No screens 20 minutes before bed",
+        "Set a consistent bedtime alarm — same time every night including weekends",
+        "No screens for 20 minutes before bed — replace with anything analog",
+        "Do 5 minutes of slow breathing before you sleep",
+        "Write a short brain dump before bed — everything on your mind, out of your head",
+        "Keep your phone charger outside your bedroom",
     ],
     domain_spiritual: [
-        "Sit in silence for 5 minutes each morning",
-        "Write one thing you're grateful for before you sleep",
+        "Sit in silence for 5 minutes each morning before the day starts",
+        "Write one thing you're grateful for each night — specific, not generic",
         "Spend 10 minutes in prayer, meditation, or reflection daily",
+        "Read something that feeds your spirit for 10 minutes a day",
+        "Take one mindful walk a week — no destination, no podcast, just present",
     ],
     domain_other: [
-        "Spend 10 minutes a day on the thing that matters to you",
-        "Write down one intention for the day each morning",
+        "Spend 10 focused minutes a day on the thing that matters to you",
+        "Write one intention for the day each morning before anything else",
         "Do one small thing today you'll thank yourself for tomorrow",
+        "Block 15 minutes in your day for the thing you keep putting off",
+        "At the end of each day, ask yourself: did I move toward who I want to be?",
     ],
+};
+
+const getRandomMvaSuggestions = (domain) => {
+    const all = mvaSuggestions[domain] || mvaSuggestions["domain_other"];
+    // Shuffle and take first 3
+    return [...all]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3);
+};
+
+//Reflection Suggestion ────────────────────────────────────────────────────────
+const fallbackReflections = {
+    domain_health: [
+        `It sounds like this isn't really about how you look — it's about how you feel in your own body every day. That's a much more powerful reason to start.`,
+        `What I'm hearing is that you want to feel like yourself again. Not a new you — just the version of you that actually has energy and feels good.`,
+        `It sounds like you're ready to stop putting your body last. Like you've realised that taking care of yourself isn't selfish — it's necessary.`,
+    ],
+    domain_mind: [
+        `It sounds like you're tired of feeling scattered — like your attention belongs to everything except what actually matters to you.`,
+        `What I'm hearing is that you want your mind to feel like yours again. Quieter, clearer, more focused on what you choose.`,
+        `It sounds like you want to show up to your own life more fully — not just going through the motions, but actually present.`,
+    ],
+    domain_relationships: [
+        `It sounds like the people you love most are feeling the distance, and so are you. You want to actually be there — not just nearby.`,
+        `What I'm hearing is that connection matters deeply to you, and right now it doesn't feel like enough. You want to change that.`,
+        `It sounds like you're ready to be more intentional about the people in your life — to stop letting time pass and start showing up.`,
+    ],
+    domain_rest: [
+        `It sounds like you're running on empty and you've been pretending that's okay for too long. Rest isn't laziness — and part of you knows that.`,
+        `What I'm hearing is that you want to wake up feeling like you actually slept. Like your body and mind got a real chance to recover.`,
+        `It sounds like everything suffers when you're exhausted — and you're ready to actually do something about it instead of just pushing through.`,
+    ],
+    domain_spiritual: [
+        `It sounds like you're craving something quieter and deeper — a sense of groundedness that the noise of everyday life keeps drowning out.`,
+        `What I'm hearing is that you want to feel more connected — to yourself, to something bigger, to a sense of purpose that actually holds.`,
+        `It sounds like you want your inner life to get the same attention you give everything else. To finally make space for what actually centres you.`,
+    ],
+    domain_other: [
+        `It sounds like you've been carrying this for a while — and you're ready to stop waiting for the right moment and just start.`,
+        `What I'm hearing is that this matters to you more than you usually admit. And that's exactly why it's worth showing up for.`,
+        `It sounds like you know what you need to do — you just need something to help you actually do it, consistently, without burning out.`,
+    ],
+};
+
+const getRandomFallback = (domain) => {
+    const options = fallbackReflections[domain] || fallbackReflections["domain_other"];
+    return options[Math.floor(Math.random() * options.length)];
 };
 
 // ─── Onboarding Scene ────────────────────────────────────────────────────────
@@ -196,10 +299,7 @@ export const onboardingScene = new Scenes.WizardScene(
         } catch (err) {
             // Fallback if API fails — never break the flow
             console.error("AI reflection failed:", err);
-            reflection =
-                `It sounds like you're not just chasing a result — ` +
-                `you're becoming someone who genuinely shows up for themselves. ` +
-                `That shift in identity is where real change starts.`;
+            reflection=getRandomFallback(ctx.wizard.state.domain);
         }
         await ctx.reply(reflection)
         await ctx.reply(
@@ -234,17 +334,14 @@ export const onboardingScene = new Scenes.WizardScene(
         }
 
         const domain = ctx.wizard.state.domain || "domain_other";
-        const suggestions = mvaSuggestions[domain];
+        const suggestions = getRandomMvaSuggestions(domain);
+        ctx.wizard.state.currentSuggestions = suggestions;
 
-        await ctx.reply(
-            `Here's something I've learned: big changes start embarrassingly small.\n\n` +
-            `Based on what you've shared, here are three tiny daily actions that could actually move the needle:\n\n` +
-            `Pick the one that feels most *doable* right now — not most impressive, most doable.`,
-            { parse_mode: "Markdown" }
+        await ctx.reply(getRandomMvaIntro(domain),{ parse_mode: "Markdown" }
         );
 
         await ctx.reply(
-            `Which one?`,
+            `Which one fits?`,
             Markup.inlineKeyboard([
                 [Markup.button.callback(`1. ${suggestions[0]}`, "mva_0")],
                 [Markup.button.callback(`2. ${suggestions[1]}`, "mva_1")],
