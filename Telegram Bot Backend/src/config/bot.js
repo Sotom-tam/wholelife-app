@@ -1,92 +1,282 @@
-//My first bot
-import { Telegraf,Markup,Scenes,session} from "telegraf";
+import { Telegraf, Markup, Scenes, session } from "telegraf";
 
-//Telegram bot set up
-const bot= new Telegraf(process.env.BOT_TOKEN)
-// 1. Register session middleware (Required for scenes)
+const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
 
-//Defining Onboarding Scene
-export const onboardingScene= new Scenes.WizardScene(
-    'onboarding',//Scene ID,
+// ─── Random greeting pool ───────────────────────────────────────────────────
+const greetings = [
+    `Hey, you made it. 👋 I'm BecomingYou — a small bot with one big job: helping you actually become the person you keep meaning to be.`,
+    `Well hello there. 👋 I'm BecomingYou. I don't do motivation speeches or streak counters. I just help you show up, one small step at a time.`,
+    `Hey! Glad you're here. 👋 I'm BecomingYou — think of me as a quiet accountability partner who never judges a missed day.`,
+    `Oh hey, a new face. 👋 I'm BecomingYou. My whole thing is helping you build the habits that actually stick — starting embarrassingly small.`,
+];
+
+const randomGreeting = () => greetings[Math.floor(Math.random() * greetings.length)];
+
+// ─── Domain options ─────────────────────────────────────────────────────────
+const domainKeyboard = Markup.inlineKeyboard([
+    [Markup.button.callback("💪 Health & body", "domain_health")],
+    [Markup.button.callback("🧠 Mind & focus", "domain_mind")],
+    [Markup.button.callback("❤️ Relationships", "domain_relationships")],
+    [Markup.button.callback("😴 Rest & energy", "domain_rest")],
+    [Markup.button.callback("🙏 Spiritual / inner life", "domain_spiritual")],
+    [Markup.button.callback("✍️ Something else", "domain_other")],
+]);
+
+// ─── MVA suggestions by domain ──────────────────────────────────────────────
+const mvaSuggestions = {
+    domain_health: [
+        "Drink a glass of water first thing every morning",
+        "Put on your trainers after breakfast — even if you don't go further",
+        "Do 5 minutes of movement before lunch",
+    ],
+    domain_mind: [
+        "Write 3 sentences in a journal before bed",
+        "Put your phone face-down for the first 30 minutes of your day",
+        "Read one page of a book before you sleep",
+    ],
+    domain_relationships: [
+        "Send one voice note or text to someone you care about each day",
+        "Ask someone 'how are you really doing?' this week",
+        "Put away your phone during one meal a day",
+    ],
+    domain_rest: [
+        "Set a consistent bedtime alarm — even on weekends",
+        "Do 5 minutes of slow breathing before sleep",
+        "No screens 20 minutes before bed",
+    ],
+    domain_spiritual: [
+        "Sit in silence for 5 minutes each morning",
+        "Write one thing you're grateful for before you sleep",
+        "Spend 10 minutes in prayer, meditation, or reflection daily",
+    ],
+    domain_other: [
+        "Spend 10 minutes a day on the thing that matters to you",
+        "Write down one intention for the day each morning",
+        "Do one small thing today you'll thank yourself for tomorrow",
+    ],
+};
+
+// ─── Onboarding Scene ────────────────────────────────────────────────────────
+export const onboardingScene = new Scenes.WizardScene(
+    "onboarding",
+
+    // STEP 0 — Random greeting + disclaimer + name check
     async function step0(ctx) {
-        await ctx.reply(`Welcome I'm BecomingYou your AI Assitant that'll help you stay on track to becoming who you aspire to be`)
-        await ctx.reply(`Can I call you ${ctx.from.first_name}?`,
+        await ctx.reply(randomGreeting());
+
+        await ctx.reply(
+            `Quick honest note before we begin:\n\nI'm a habit tool, not a doctor. ` +
+            `I can help you build better daily practices — but if something's going on health-wise, ` +
+            `please talk to a medical professional first. I work best alongside proper care, not instead of it. 🙏`
+        );
+
+        await ctx.reply(
+            `Okay — can I call you ${ctx.from.first_name}?`,
             Markup.inlineKeyboard([
-                Markup.button.callback('Yes','action_yes'),
-                Markup.button.callback("No",'action_no')
+                Markup.button.callback("Yes, that's me", "name_yes"),
+                Markup.button.callback("I go by something else", "name_no"),
             ])
-        )
-        return ctx.wizard.next()
-    },
-    async function step1(ctx){
-        //checking if it was a message text, so user answered instead
-        if(ctx.message?.text){
-            ctx.wizard.state.name = ctx.message.text
-            await ctx.reply(`Okay ${ctx.message.text}
-                \nWhat is your goal?
-                \nTo answer this more clearly you should thinking deeply about the person you want to be
-                \nAbout how this goal will get you closer to becoming that person`
-            )
-            return ctx.wizard.next()
-        }
-        //first I check what the user picked with ctx.btnquery.callback
-        if(!ctx.callbackQuery){
-            await ctx.reply(`
-                Is that what you want be to call you?
-                \nIf not please click Yes or No Above
-            `)
-            return
-        }
-        console.log("This is what contect callback query data looks like:",ctx.callbackQuery.data)
-        //Stops the loading on button
-        await ctx.answerCbQuery()
+        );
 
-        //Checking user answer
-        if(ctx.callbackQuery.data==="action_yes"){
-            ctx.wizard.state.name=ctx.from.first_name
-            console.log("want to see the state object:",ctx.wizard.state,ctx.wizard.state.name)
-            await ctx.reply(`Okay ${ctx.from.first_name}
-                \nWhat is your goal?
-                \nTo answer this more clearly you should thinking deeply about the person you want to be
-                \nAbout how this goal will get you closer to becoming that person`)
-            return ctx.wizard.next()
-        }else{//User clicked No
-            await ctx.reply(`Then What should I call you?`)
-            return
-        }
-        
+        return ctx.wizard.next();
     },
+
+    // STEP 1 — Confirm name, pick life domain
+    async function step1(ctx) {
+        if (ctx.message?.text) {
+            ctx.wizard.state.name = ctx.message.text;
+            await ctx.reply(
+                `Love that. Nice to meet you, ${ctx.wizard.state.name}.\n\n` +
+                `So — what part of your life do you most want to work on right now?`,
+                domainKeyboard
+            );
+            return ctx.wizard.next();
+        }
+
+        if (!ctx.callbackQuery) {
+            await ctx.reply(`Just tap Yes or No above — I'll wait 😊`);
+            return;
+        }
+
+        await ctx.answerCbQuery();
+
+        if (ctx.callbackQuery.data === "name_yes") {
+            ctx.wizard.state.name = ctx.from.first_name;
+            await ctx.reply(
+                `Nice to meet you, ${ctx.wizard.state.name}.\n\n` +
+                `So — what part of your life do you most want to work on right now?`,
+                domainKeyboard
+            );
+            return ctx.wizard.next();
+        } else {
+            await ctx.reply(`No worries — what should I call you?`);
+        }
+    },
+
+    // STEP 2 — Receive domain, health disclaimer if needed, ask surface goal
     async function step2(ctx) {
-        if (!ctx.message?.text) return
-        ctx.wizard.state.goal = ctx.message.text
-        await ctx.reply(`Now We're going somewhere!
-            \nWhat is the smallest possible Action you could perform everyday that would help you achieve that goal?
-            \n(The Minimum Viable Action)
-        `)
-        return ctx.wizard.next()      
-    },
-    async function step3(ctx) {
-        // Receive MVA
-        if (!ctx.message?.text) return
-        ctx.wizard.state.mva = ctx.message.text
-        await ctx.reply(`Perfect
-            \nI'll help you stay consistent and remind you to complete your Minimum Viable Action (MVA) everyday!
-        `)
-        return ctx.scene.leave()      
-    }
-)
+        if (!ctx.callbackQuery) {
+            await ctx.reply(`Just pick one of the options above — no wrong answers here 😊`);
+            return;
+        }
 
-// 2. Register the stage manager with your wizard scene
+        await ctx.answerCbQuery();
+        ctx.wizard.state.domain = ctx.callbackQuery.data;
+
+        // Health disclaimer nudge
+        if (ctx.callbackQuery.data === "domain_health") {
+            await ctx.reply(
+                `Love that you're focusing on your health 💪\n\n` +
+                `Small reminder: if you're dealing with any medical condition or symptoms, ` +
+                `keep working with your doctor. I'm here to help with the daily consistency side — ` +
+                `not to replace proper medical care.`
+            );
+        }
+
+        await ctx.reply(
+            `Got it. Now tell me — what do you actually want to change or achieve in that area?\n\n` +
+            `Don't overthink it. Say it how you'd say it to a friend.`
+        );
+
+        return ctx.wizard.next();
+    },
+
+    // STEP 3 — Receive surface goal, ask the why
+    async function step3(ctx) {
+        if (!ctx.message?.text) return;
+
+        ctx.wizard.state.surfaceGoal = ctx.message.text;
+
+        await ctx.reply(
+            `Okay, I hear you.\n\nNow here's the important question — ` +
+            `and take a second with it:\n\n` +
+            `*Why does that actually matter to you?* ` +
+            `What would genuinely be different in your life if that changed?`,
+            { parse_mode: "Markdown" }
+        );
+
+        return ctx.wizard.next();
+    },
+
+    // STEP 4 — Receive the why, reflect identity back
+    async function step4(ctx) {
+        if (!ctx.message?.text) return;
+
+        ctx.wizard.state.why = ctx.message.text;
+        const name = ctx.wizard.state.name;
+
+        // Bot reflects identity back based on what they typed
+        // In V1 this is a warm generic reflection — later this is where an LLM call would go
+        await ctx.reply(
+            `${name}, that tells me a lot.\n\n` +
+            `It sounds like what you're really after isn't just the result — ` +
+            `it's becoming the kind of person who *shows up for themselves*.\n\n` +
+            `Someone who makes choices today that their future self will thank them for.`,
+            { parse_mode: "Markdown" }
+        );
+
+        await ctx.reply(
+            `Does that feel close to what you meant?`,
+            Markup.inlineKeyboard([
+                Markup.button.callback("Yes, exactly", "identity_yes"),
+                Markup.button.callback("Not quite", "identity_no"),
+            ])
+        );
+
+        return ctx.wizard.next();
+    },
+
+    // STEP 5 — Confirm identity, suggest MVAs
+    async function step5(ctx) {
+        if (!ctx.callbackQuery) {
+            await ctx.reply(`Just tap one of the options above 😊`);
+            return;
+        }
+
+        await ctx.answerCbQuery();
+
+        if (ctx.callbackQuery.data === "identity_no") {
+            await ctx.reply(
+                `That's fair — I don't want to put words in your mouth.\n\n` +
+                `In your own words, how would you finish this sentence:\n\n` +
+                `*"I want to become someone who..."*`,
+                { parse_mode: "Markdown" }
+            );
+            // In V1 we'll accept their text and move on
+            // TODO: add a step here to receive free text identity statement
+        }
+
+        const domain = ctx.wizard.state.domain || "domain_other";
+        const suggestions = mvaSuggestions[domain];
+
+        await ctx.reply(
+            `Here's something I've learned: big changes start embarrassingly small.\n\n` +
+            `Based on what you've shared, here are three tiny daily actions that could actually move the needle:\n\n` +
+            `Pick the one that feels most *doable* right now — not most impressive, most doable.`,
+            { parse_mode: "Markdown" }
+        );
+
+        await ctx.reply(
+            `Which one?`,
+            Markup.inlineKeyboard([
+                [Markup.button.callback(`1. ${suggestions[0]}`, "mva_0")],
+                [Markup.button.callback(`2. ${suggestions[1]}`, "mva_1")],
+                [Markup.button.callback(`3. ${suggestions[2]}`, "mva_2")],
+                [Markup.button.callback("I have my own in mind", "mva_custom")],
+            ])
+        );
+
+        return ctx.wizard.next();
+    },
+
+    // STEP 6 — Receive MVA choice, show summary
+    async function step6(ctx) {
+        if (!ctx.callbackQuery && !ctx.message?.text) return;
+
+        const domain = ctx.wizard.state.domain || "domain_other";
+        const suggestions = mvaSuggestions[domain];
+        let mva;
+
+        if (ctx.message?.text) {
+            // They typed their own MVA
+            mva = ctx.message.text;
+        } else {
+            await ctx.answerCbQuery();
+
+            if (ctx.callbackQuery.data === "mva_custom") {
+                await ctx.reply(`I love that. What's your action?`);
+                return; // Wait for their next message
+            }
+
+            const index = parseInt(ctx.callbackQuery.data.split("_")[1]);
+            mva = suggestions[index];
+        }
+
+        ctx.wizard.state.mva = mva;
+        const name = ctx.wizard.state.name;
+
+        // Save to DB here (ctx.wizard.state has everything)
+        // await saveUser({ name, goal: ctx.wizard.state.surfaceGoal, why: ctx.wizard.state.why, mva, domain })
+
+        await ctx.reply(
+            `This is your starting point, ${name}:\n\n` +
+            `🌱 *Who you're becoming:* Someone who shows up for themselves\n` +
+            `⚡ *Your daily practice:* ${mva}\n\n` +
+            `That's it. No perfection required. Just one small action, every day.\n\n` +
+            `I'll check in with you tomorrow. You've already started. 🙌`,
+            { parse_mode: "Markdown" }
+        );
+
+        return ctx.scene.leave();
+    }
+);
+
 const stage = new Scenes.Stage([onboardingScene]);
 bot.use(stage.middleware());
 
-//Registering My bot Observers
+bot.start(async (ctx) => {
+    ctx.scene.enter("onboarding");
+});
 
-
-//When the bot starts it should enter the onboarding scene
-bot.start(async(ctx)=>{
-    ctx.scene.enter('onboarding')
-})
-
-export default bot
+export default bot;
