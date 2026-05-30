@@ -1,5 +1,8 @@
+// src/config/bot.js
+
 import { Telegraf, Markup, Scenes, session } from "telegraf";
-import { reflectIdentity } from "../ai/reflectIdentity.js";
+import { reflectIdentity } from "./reflectIdentity.js";
+import { registerGlobalCommands } from "./botCommand.js";
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
@@ -284,11 +287,43 @@ export const onboardingScene = new Scenes.WizardScene(
     }
 );
 
+// ─── Layer 2: Scene-level command escapes ────────────────────────────────────
+// These catch commands typed WHILE the user is inside the wizard
+["start", "restart", "help", "support"].forEach((cmd) => {
+    onboardingScene.command(cmd, async (ctx) => {
+        ctx.wizard.state = {};
+        await ctx.scene.leave();
+        // After leaving, re-trigger the global handler by faking the update
+        // Simplest approach: just handle it inline here too
+        if (cmd === "start" || cmd === "restart") {
+            await ctx.reply("Okay, let's go from the top 🙂");
+            await ctx.scene.enter("onboarding");
+        } else if (cmd === "help") {
+            await ctx.reply(
+                `Here's what I can do:\n\n` +
+                `⚡ /start — Start or restart onboarding\n` +
+                `✅ /checkin — Log today's practice\n` +
+                `📖 /reflect — Weekly reflection\n` +
+                `📈 /progress — See your 14-day progress\n` +
+                `🆘 /support — Get help from a human\n` +
+                `🔄 /restart — Start over from the beginning\n\n` +
+                `When you're ready, tap /start to continue.`
+            );
+        } else if (cmd === "support") {
+            await ctx.reply(
+                `No worries — we're here. 🙏\n\n` +
+                `Reach us at: support@becomingyou.app\n\n` +
+                `Tap /start when you're ready to continue.`
+            );
+        }
+    });
+});
+
 const stage = new Scenes.Stage([onboardingScene]);
 bot.use(stage.middleware());
 
-bot.start(async (ctx) => {
-    ctx.scene.enter("onboarding");
-});
+
+//function in config/botCommands.js that registers all the bot built in commands
+registerGlobalCommands(bot)
 
 export default bot;
