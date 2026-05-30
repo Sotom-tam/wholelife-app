@@ -1,4 +1,5 @@
 import { Telegraf, Markup, Scenes, session } from "telegraf";
+import { reflectIdentity } from "../ai/reflectIdentity.js";
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
@@ -164,18 +165,29 @@ export const onboardingScene = new Scenes.WizardScene(
         if (!ctx.message?.text) return;
 
         ctx.wizard.state.why = ctx.message.text;
-        const name = ctx.wizard.state.name;
+        //while we wait for AI Model API send typing
+        await ctx.sendChatAction("typing")        
 
         // Bot reflects identity back based on what they typed
         // In V1 this is a warm generic reflection — later this is where an LLM call would go
-        await ctx.reply(
-            `${name}, that tells me a lot.\n\n` +
-            `It sounds like what you're really after isn't just the result — ` +
-            `it's becoming the kind of person who *shows up for themselves*.\n\n` +
-            `Someone who makes choices today that their future self will thank them for.`,
-            { parse_mode: "Markdown" }
-        );
-
+        let reflection
+        //AI api call
+        try {
+        reflection = await reflectIdentity({
+            name: ctx.wizard.state.name,
+            domain: ctx.wizard.state.domain,
+            surfaceGoal: ctx.wizard.state.surfaceGoal,
+            why: ctx.wizard.state.why,
+        });
+        } catch (err) {
+            // Fallback if API fails — never break the flow
+            console.error("AI reflection failed:", err);
+            reflection =
+                `It sounds like you're not just chasing a result — ` +
+                `you're becoming someone who genuinely shows up for themselves. ` +
+                `That shift in identity is where real change starts.`;
+        }
+        await ctx.reply(reflection)
         await ctx.reply(
             `Does that feel close to what you meant?`,
             Markup.inlineKeyboard([
