@@ -7,6 +7,17 @@ import { registerGlobalCommands } from "./botCommand.js";
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session());
 
+// Register commands with Telegram so they show in the menu
+await bot.telegram.setMyCommands([
+    { command: "start",    description: "Start or restart BecomingYou" },
+    { command: "restart",  description: "Start over from the beginning" },
+    { command: "help",     description: "See what I can do" },
+    { command: "support",  description: "Get help or send feedback" },
+    { command: "checkin",  description: "Log today's practice" },
+    { command: "reflect",  description: "Weekly reflection" },
+    { command: "progress", description: "See your 14-day progress" },
+]);
+
 // ─── Random greeting pool ───────────────────────────────────────────────────
 const greetings = [
     `Hey, you made it. 👋 I'm BecomingYou — a small bot with one big job: helping you actually become the person you keep meaning to be.`,

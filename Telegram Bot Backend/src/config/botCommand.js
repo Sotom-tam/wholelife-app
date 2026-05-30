@@ -3,15 +3,23 @@ export function registerGlobalCommands(bot, stage) {
 
     // ── /start ─────────────────────────────────────────────────────
     bot.start(async (ctx) => {
-        await ctx.scene.leave();
-        ctx.wizard.state = {};
+        if (ctx.scene?.current) {
+            await ctx.scene.leave();
+        }
+        if (ctx.wizard) {
+            ctx.wizard.state = {};
+        }
         await ctx.scene.enter("onboarding");
     });
 
     // ── /restart ───────────────────────────────────────────────────
     bot.command("restart", async (ctx) => {
-        await ctx.scene.leave();
-        ctx.wizard.state = {};
+        if (ctx.scene?.current) {
+            await ctx.scene.leave();
+        }
+        if (ctx.wizard) {
+            ctx.wizard.state = {};
+        }
         await ctx.reply("Okay, starting fresh 🙂");
         await ctx.scene.enter("onboarding");
     });
