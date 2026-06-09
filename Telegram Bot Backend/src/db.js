@@ -1,5 +1,5 @@
 import {Pool} from "pg"
-import { PostgreSQLSessionStore } from "telegraf-session-postgresql"
+import PostgreSQLSession from "telegraf-session-postgresql"
 
 //setting up database connection
 const pool= new Pool({
@@ -16,5 +16,8 @@ pool.on('error', (err) => {
 })
 
 // Session store — wraps the pool so Telegraf can read/write sessions
-export const sessionStore = new PostgreSQLSessionStore({ pool })
+export const sessionStore = new PostgreSQLSession({ 
+    connectionString: process.env.DATABASE_URL,
+    ssl: false,
+})
 export default pool

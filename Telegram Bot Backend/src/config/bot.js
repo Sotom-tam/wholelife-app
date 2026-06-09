@@ -5,7 +5,7 @@ import { session } from "telegraf-session-postgresql";
 import { sessionStore } from "../db.js";
 import { reflectIdentity } from "./reflectIdentity.js";
 import { registerGlobalCommands } from "./botCommand.js";
-
+import { saveOnboarding } from "../models/user.js";
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session({store: sessionStore}));
 
@@ -360,7 +360,7 @@ export const onboardingScene = new Scenes.WizardScene(
         if (!ctx.callbackQuery && !ctx.message?.text) return;
 
         const domain = ctx.wizard.state.domain || "domain_other";
-        const suggestions = mvaSuggestions[domain];
+        const suggestions = ctx.wizard.state.currentSuggestions;
         let mva;
 
         if (ctx.message?.text) {
@@ -382,8 +382,14 @@ export const onboardingScene = new Scenes.WizardScene(
         const name = ctx.wizard.state.name;
 
         // Save to DB here (ctx.wizard.state has everything)
-        // await saveUser({ name, goal: ctx.wizard.state.surfaceGoal, why: ctx.wizard.state.why, mva, domain })
-
+         await saveOnboarding({
+            telegramId: ctx.from.id,
+            name: ctx.wizard.state.name,
+            domain: ctx.wizard.state.domain,
+            surfaceGoal: ctx.wizard.state.surfaceGoal,
+            identityStatement: ctx.wizard.state.identityStatement,
+            mva: mva
+        });
         await ctx.reply(
             `This is your starting point, ${name}:\n\n` +
             `🌱 *Who you're becoming:* Someone who shows up for themselves\n` +
