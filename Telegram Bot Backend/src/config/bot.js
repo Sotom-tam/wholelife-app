@@ -5,7 +5,7 @@ import { session } from "telegraf-session-postgresql";
 import { sessionStore } from "../db.js";
 import { reflectIdentity } from "./reflectIdentity.js";
 import { registerGlobalCommands } from "./botCommand.js";
-import { saveOnboarding } from "../models/user.js";
+import { saveOnboarding,updateReminderTime } from "../models/user.js";
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session({store: sessionStore}));
 
@@ -434,39 +434,34 @@ export const onboardingScene = new Scenes.WizardScene(
     }
 );
 
-// ─── Layer 2: Scene-level command escapes ────────────────────────────────────
-// These catch commands typed WHILE the user is inside the wizard
-// ["start", "restart", "help", "support"].forEach((cmd) => {
-//     onboardingScene.command(cmd, async (ctx) => {
-//         ctx.wizard.state = {};
-//         await ctx.scene.leave();
-//         // After leaving, re-trigger the global handler by faking the update
-//         // Simplest approach: just handle it inline here too
-//         if (cmd === "start" || cmd === "restart") {
-//             await ctx.reply("Okay, let's go from the top 🙂");
-//             await ctx.scene.enter("onboarding");
-//         } else if (cmd === "help") {
-//             await ctx.reply(
-//                 `Here's what I can do:\n\n` +
-//                 `⚡ /start — Start or restart onboarding\n` +
-//                 `✅ /checkin — Log today's practice\n` +
-//                 `📖 /reflect — Weekly reflection\n` +
-//                 `📈 /progress — See your 14-day progress\n` +
-//                 `🆘 /support — Get help from a human\n` +
-//                 `🔄 /restart — Start over from the beginning\n\n` +
-//                 `When you're ready, tap /start to continue.`
-//             );
-//         } else if (cmd === "support") {
-//             await ctx.reply(
-//                 `No worries — we're here. 🙏\n\n` +
-//                 `Reach us at: support@becomingyou.app\n\n` +
-//                 `Tap /start when you're ready to continue.`
-//             );
-//         }
-//     });
-// });
-
-const stage = new Scenes.Stage([onboardingScene]);
+export const reminderChangeScene = new Scenes.WizardScene("reminder_change",
+    async function step0(ctx) {
+        await ctx.reply(
+            `What time would you like your reminder?`,
+            Markup.inlineKeyboard([
+                [Markup.button.callback("7:00 AM", "reminder_07:00")],
+                [Markup.button.callback("12:00 PM", "reminder_12:00")],
+                [Markup.button.callback("6:00 PM", "reminder_18:00")],
+                [Markup.button.callback("7:00 PM (default)", "reminder_19:00")],
+                [Markup.button.callback("9:00 PM", "reminder_21:00")],
+            ])
+        )
+        return ctx.wizard.next();
+    },
+    async function step1(ctx) {
+        if (!ctx.callbackQuery) {
+            await ctx.reply(`Just tap one of the time options above 😊`);
+            return;
+        }
+        await ctx.answerCbQuery();
+        const reminderTime = ctx.callbackQuery.data.split("_")[1];
+        const userId = ctx.from.id
+        await updateReminderTime(userId, reminderTime)
+        await ctx.reply(`Got it! I'll check in with you at ${reminderTime} from now on. If you ever want to change it again, just tap /reminders.`)
+        return ctx.scene.leave();
+    }
+);
+const stage = new Scenes.Stage([onboardingScene, reminderChangeScene]);
 bot.use(stage.middleware());
 
 

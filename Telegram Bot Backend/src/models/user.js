@@ -66,3 +66,11 @@ export async function updateReminderTime(userId, reminderTime) {
         [reminderTime, userId]
     )
 }
+
+// Updates the reminder_enabled status for a user by id
+export async function updateReminderStatus(userId, newStatus) {
+    await pool.query(
+        `UPDATE users SET reminder_enabled = $1 WHERE id = $2`,
+        [newStatus, userId]
+    )
+}
