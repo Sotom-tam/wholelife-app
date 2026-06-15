@@ -6,7 +6,7 @@ import { reflectIdentity } from "./reflectIdentity.js";
 import { registerGlobalCommands } from "./botCommand.js";
 import { saveOnboarding,updateReminderTime } from "../models/user.js";
 const bot = new Telegraf(process.env.BOT_TOKEN);
-bot.use(session({store: sessionStore}));
+bot.use(session());
 
 // Register commands with Telegram so they show in the menu
 await bot.telegram.setMyCommands([
