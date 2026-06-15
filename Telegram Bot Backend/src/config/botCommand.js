@@ -48,4 +48,13 @@ export function registerGlobalCommands(bot, stage) {
             `When you're ready to pick up where you left off, just tap /start.`
         );
     });
+        // ── /check In reminders ───────────────────────────────────────────────────
+    bot.command("support", async (ctx) => {
+        await ctx.scene.leave();
+        await ctx.reply(
+            `No worries — we're here. 🙏\n\n` +
+            `For help or feedback, reach us at: support@becomingyou.app\n\n` +
+            `When you're ready to pick up where you left off, just tap /start.`
+        );
+    });
 }

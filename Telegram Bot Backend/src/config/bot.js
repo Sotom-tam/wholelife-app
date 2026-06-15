@@ -379,23 +379,54 @@ export const onboardingScene = new Scenes.WizardScene(
         }
 
         ctx.wizard.state.mva = mva;
-        const name = ctx.wizard.state.name;
+        await ctx.reply(
+            `Last thing — what time should I check in with you each day?\n\n` +
+            `Pick one below, or I'll default to 7pm.`,
+            Markup.inlineKeyboard([
+                [Markup.button.callback("7:00 AM", "reminder_07:00")],
+                [Markup.button.callback("12:00 PM", "reminder_12:00")],
+                [Markup.button.callback("6:00 PM", "reminder_18:00")],
+                [Markup.button.callback("7:00 PM (default)", "reminder_19:00")],
+                [Markup.button.callback("9:00 PM", "reminder_21:00")],
+            ])
+        );
+        return ctx.wizard.next();
+    },
+    // STEP 7 — Receive reminder time, save everything, show summary
+    async function step7(ctx) {
+        if (!ctx.callbackQuery) {
+            await ctx.reply(`Just tap one of the time options above 😊`);
+            return;
+        }
 
-        // Save to DB here (ctx.wizard.state has everything)
-         await saveOnboarding({
+        await ctx.answerCbQuery();
+
+        // Extract the time value from the callback e.g. "reminder_19:00" → "19:00"
+        const reminderTime = ctx.callbackQuery.data.split("_")[1];
+        ctx.wizard.state.reminderTime = reminderTime;
+
+        const name = ctx.wizard.state.name;
+        const mva = ctx.wizard.state.mva;
+
+        await saveOnboarding({
             telegramId: ctx.from.id,
-            name: ctx.wizard.state.name,
+            name,
             domain: ctx.wizard.state.domain,
             surfaceGoal: ctx.wizard.state.surfaceGoal,
             identityStatement: ctx.wizard.state.identityStatement,
-            mva: mva
+            mva,
+            reminderTime, // new field
         });
+
+        ctx.session = {};
+
         await ctx.reply(
             `This is your starting point, ${name}:\n\n` +
             `🌱 *Who you're becoming:* Someone who shows up for themselves\n` +
-            `⚡ *Your daily practice:* ${mva}\n\n` +
+            `⚡ *Your daily practice:* ${mva}\n` +
+            `🔔 *Daily check-in:* ${ctx.callbackQuery.data === "reminder_19:00" ? "7:00 PM" : reminderTime}\n\n` +
             `That's it. No perfection required. Just one small action, every day.\n\n` +
-            `I'll check in with you tomorrow. You've already started. 🙌`,
+            `I'll check in with you at that time. You've already started. 🙌`,
             { parse_mode: "Markdown" }
         );
 

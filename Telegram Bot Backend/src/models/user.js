@@ -42,11 +42,12 @@ export async function completeOnboarding(userId) {
 }
 
 // Saves everything from onboarding in the right order
-export async function saveOnboarding({ telegramId, name, domain, surfaceGoal, identityStatement, mva }) {
+export async function saveOnboarding({ telegramId, name, domain, surfaceGoal, identityStatement, mva,reminderTime }) {
     const userId = await createUser({ telegramId, name })
     const goalId = await createGoal({ userId, domain, surfaceGoal, identityStatement })
     await createMva({ goalId, description: mva })
     await completeOnboarding(userId)
+    await updateReminderTime(userId, reminderTime)
 }
 
 // Gets a user by telegram_id, returns the full row or null if not found
