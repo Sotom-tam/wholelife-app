@@ -1,5 +1,5 @@
 // src/db/reminderQueries.js
-import { pool } from "../config/db.js";
+import pool from "../db.js";
 
 export async function getUsersDueForReminder() {
     const result = await pool.query(`

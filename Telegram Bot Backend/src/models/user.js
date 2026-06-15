@@ -1,4 +1,4 @@
-import pool from "../config/db.js"
+import pool from "../db.js";
 
 // Creates a new user row, returns the new user's id
 export async function createUser({ telegramId, name, timezone = "UTC" }) {
