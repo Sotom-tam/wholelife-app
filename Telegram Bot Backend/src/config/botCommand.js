@@ -41,7 +41,6 @@ export function registerGlobalCommands(bot, stage) {
             `If you ever feel stuck, just tap /restart and we'll go again.`
         );
     });
-
     // ── /support ───────────────────────────────────────────────────
     bot.command("support", async (ctx) => {
         await ctx.scene.leave();
@@ -51,7 +50,7 @@ export function registerGlobalCommands(bot, stage) {
             `When you're ready to pick up where you left off, just tap /start.`
         );
     });
-        // ── /reminders ───────────────────────────────────────────────────
+    // ── /reminders ───────────────────────────────────────────────────
     bot.command("reminders", async (ctx) => {
         await ctx.scene.leave();
         await ctx.reply(
@@ -78,7 +77,7 @@ export function registerGlobalCommands(bot, stage) {
         await ctx.answerCbQuery();
 
         await ctx.reply(
-            `Reminders are now ${!enabled ? "ON ✅" : "OFF ❌"}`
+            `Reminders are now ${newStatus ? "ON ✅" : "OFF ❌"}`
         );
 
     })
