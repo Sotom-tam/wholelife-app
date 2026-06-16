@@ -1,7 +1,6 @@
 // src/config/bot.js
 
-import { Telegraf, Markup, Scenes} from "telegraf";
-import {session} from "@telegraf/session";
+import { Telegraf, Markup, Scenes,session} from "telegraf";
 import { ensureSessionTable, pgSessionStore } from "../telegrafSessionStore.js";
 import { reflectIdentity } from "./reflectIdentity.js";
 import { registerGlobalCommands } from "./botCommand.js";
