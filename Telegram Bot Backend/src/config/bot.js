@@ -408,15 +408,26 @@ export const onboardingScene = new Scenes.WizardScene(
         const name = ctx.wizard.state.name;
         const mva = ctx.wizard.state.mva;
 
-        await saveOnboarding({
-            telegramId: ctx.from.id,
-            name,
-            domain: ctx.wizard.state.domain,
-            surfaceGoal: ctx.wizard.state.surfaceGoal,
-            identityStatement: ctx.wizard.state.identityStatement,
-            mva,
-            reminderTime, // new field
-        });
+        try {
+            await saveOnboarding({
+                telegramId: ctx.from.id,
+                name,
+                domain: ctx.wizard.state.domain,
+                surfaceGoal: ctx.wizard.state.surfaceGoal,
+                identityStatement: ctx.wizard.state.identityStatement,
+                mva,
+                reminderTime, // new field
+            });
+        } catch (err) {
+            console.error("saveOnboarding failed for telegram_id", ctx.from.id, err);
+            await ctx.reply(
+                `Something went wrong on my end saving that — can we try again?`,
+                Markup.inlineKeyboard([
+                    [Markup.button.callback("Try again", "retry_reminder_step")],
+                ])
+            );
+            return;
+        }
 
         ctx.session = {};
 
@@ -456,13 +467,51 @@ export const reminderChangeScene = new Scenes.WizardScene("reminder_change",
         await ctx.answerCbQuery();
         const reminderTime = ctx.callbackQuery.data.split("_")[1];
         const userId = ctx.from.id
-        await updateReminderTime(userId, reminderTime)
+        try {
+            await updateReminderTime(userId, reminderTime)
+        } catch (err) {
+            console.error("reminder change failed for telegram_id", userId, err);
+            await ctx.reply(
+                `Something went wrong saving that reminder time — can we try again?`,
+                Markup.inlineKeyboard([
+                    [Markup.button.callback("Try again", "reminder_change")],
+                ])
+            );
+            return;
+        }
         await ctx.reply(`Got it! I'll check in with you at ${reminderTime} from now on. If you ever want to change it again, just tap /reminders.`)
         return ctx.scene.leave();
     }
 );
 const stage = new Scenes.Stage([onboardingScene, reminderChangeScene]);
 bot.use(stage.middleware());
+
+bot.catch(async (err, ctx) => {
+    console.error("Unhandled error in bot handler:", err);
+    if (ctx && ctx.reply) {
+        try {
+            await ctx.reply(
+                `Something went wrong on my end — let's try again. If this keeps happening, type /support.`
+            );
+        } catch (sendErr) {
+            console.error("Failed to send fallback error reply:", sendErr);
+        }
+    }
+});
+
+bot.action("retry_reminder_step", async (ctx) => {
+    await ctx.answerCbQuery();
+    await ctx.reply(
+        `Let's try again. What time should I check in with you each day?`,
+        Markup.inlineKeyboard([
+            [Markup.button.callback("7:00 AM", "reminder_07:00")],
+            [Markup.button.callback("12:00 PM", "reminder_12:00")],
+            [Markup.button.callback("6:00 PM", "reminder_18:00")],
+            [Markup.button.callback("7:00 PM (default)", "reminder_19:00")],
+            [Markup.button.callback("9:00 PM", "reminder_21:00")],
+        ])
+    );
+});
 
 
 //function in config/botCommands.js that registers all the bot built in commands

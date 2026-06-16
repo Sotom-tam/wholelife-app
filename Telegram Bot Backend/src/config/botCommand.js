@@ -1,17 +1,48 @@
 import { Markup } from "telegraf";
-import { getUserByTelegramId, updateReminderStatus, updateReminderTime } from "../models/user.js";
+import { getUserByTelegramId, getUserWithLatestPractice, updateReminderStatus, updateReminderTime } from "../models/user.js";
 // src/config/commands.js
 export function registerGlobalCommands(bot, stage) {
 
-    // ── /start ─────────────────────────────────────────────────────
-    bot.start(async (ctx) => {
+    async function startOrResumeOnboarding(ctx) {
         if (ctx.scene?.current) {
             await ctx.scene.leave();
         }
         if (ctx.wizard) {
             ctx.wizard.state = {};
         }
-        await ctx.scene.enter("onboarding");
+
+        const user = await getUserWithLatestPractice(ctx.from.id);
+
+        if (!user) {
+            return await ctx.scene.enter("onboarding");
+        }
+
+        if (user.onboarding_complete) {
+            await ctx.reply(
+                `Hey ${user.name || "there"}, good to see you again 👋\n\n` +
+                `You're already set up:\n` +
+                `🌱 Practice: ${user.mva || "Not set yet"}\n` +
+                `🔔 Check-in time: ${user.reminder_time || "7:00 PM"}\n\n` +
+                `Want to:`,
+                Markup.inlineKeyboard([
+                    [Markup.button.callback("Start completely fresh", "confirm_restart")],
+                    [Markup.button.callback("Change my check-in time", "reminder_change")],
+                    [Markup.button.callback("Change my daily practice", "change_mva")],
+                    [Markup.button.callback("Nothing, just checking in", "cancel_menu")],
+                ])
+            );
+            return;
+        }
+
+        await ctx.reply(
+            `Looks like we got interrupted last time — let's pick back up.`
+        );
+        return await ctx.scene.enter("onboarding");
+    }
+
+    // ── /start ─────────────────────────────────────────────────────
+    bot.start(async (ctx) => {
+        await startOrResumeOnboarding(ctx);
     });
 
     // ── /restart ───────────────────────────────────────────────────
@@ -22,8 +53,25 @@ export function registerGlobalCommands(bot, stage) {
         if (ctx.wizard) {
             ctx.wizard.state = {};
         }
-        await ctx.reply("Okay, starting fresh 🙂");
-        await ctx.scene.enter("onboarding");
+
+        const user = await getUserWithLatestPractice(ctx.from.id);
+
+        if (!user || !user.onboarding_complete) {
+            if (!user) {
+                await ctx.reply("Okay, starting fresh 🙂");
+            } else {
+                await ctx.reply("Looks like you didn't finish last time — let's pick up where you left off.");
+            }
+            return await ctx.scene.enter("onboarding");
+        }
+
+        await ctx.reply(
+            `Okay, starting fresh 🙂 Do you want to clear your current goal and practice for a new setup?`,
+            Markup.inlineKeyboard([
+                [Markup.button.callback("Yes, start fresh", "confirm_restart")],
+                [Markup.button.callback("No, keep what I have", "cancel_menu")],
+            ])
+        );
     });
 
     // ── /help ──────────────────────────────────────────────────────
@@ -87,6 +135,44 @@ export function registerGlobalCommands(bot, stage) {
             await ctx.scene.leave();
         }
         await ctx.scene.enter("reminder_change");
+    });
+
+    bot.action("confirm_restart", async (ctx) => {
+        await ctx.answerCbQuery();
+        await ctx.reply(
+            `Are you sure? This will clear your current goal and practice so you can set up a new one.`,
+            Markup.inlineKeyboard([
+                [Markup.button.callback("Yes, start fresh", "confirm_restart_yes")],
+                [Markup.button.callback("No, keep my current setup", "confirm_restart_no")],
+            ])
+        );
+    });
+
+    bot.action("confirm_restart_yes", async (ctx) => {
+        await ctx.answerCbQuery();
+        if (ctx.scene?.current) {
+            await ctx.scene.leave();
+        }
+        if (ctx.wizard) {
+            ctx.wizard.state = {};
+        }
+        await ctx.reply("Okay — let's start fresh. I'll guide you through onboarding again.");
+        await ctx.scene.enter("onboarding");
+    });
+
+    bot.action("confirm_restart_no", async (ctx) => {
+        await ctx.answerCbQuery();
+        await ctx.reply("Cool — we'll keep your current setup. If you want to change something later, just tap /reminders.");
+    });
+
+    bot.action("change_mva", async (ctx) => {
+        await ctx.answerCbQuery();
+        await ctx.reply("MVA editing is coming soon. For now, tap /restart if you want to set a new one.");
+    });
+
+    bot.action("cancel_menu", async (ctx) => {
+        await ctx.answerCbQuery();
+        await ctx.reply("No problem — I'm here when you're ready.");
     });
 }
 // ─── Reminders Change Scene ────────────────────────────────────────────────────────
