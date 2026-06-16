@@ -15,10 +15,9 @@ pool.on('error', (err) => {
     console.error('Unexpected pool error:', err.message)
     // log it but do NOT crash
 })
-console.log("DATABASE_URL:", process.env.DATABASE_URL);
-// Session store — wraps the pool so Telegraf can read/write sessions
-export const sessionStore = new PostgreSQLSession({ 
-    connectionString: process.env.DATABASE_URL,
-    ssl: false,
-})
+// // Session store — wraps the pool so Telegraf can read/write sessions
+// export const telegramSessionStore = new PostgreSQLSession({ 
+//     connectionString: process.env.DATABASE_URL,
+//     ssl: false,
+// })
 export default pool

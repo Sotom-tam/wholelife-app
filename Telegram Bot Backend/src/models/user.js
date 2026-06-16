@@ -1,4 +1,4 @@
-import pool from "../db.js";
+import pool from "../../db.js";
 
 // Creates a new user row or updates an existing one by telegram_id.
 // We use ON CONFLICT here so re-entering onboarding does not crash with a duplicate key error.

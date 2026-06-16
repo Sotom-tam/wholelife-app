@@ -1,12 +1,13 @@
 // src/config/bot.js
 
-import { Telegraf, Markup, Scenes,session } from "telegraf";
-import { sessionStore } from "../db.js";
+import { Telegraf, Markup, Scenes} from "telegraf";
+import {session} from "@telegraf/session";
+import { ensureSessionTable, pgSessionStore } from "../telegrafSessionStore.js";
 import { reflectIdentity } from "./reflectIdentity.js";
 import { registerGlobalCommands } from "./botCommand.js";
 import { saveOnboarding,updateReminderTime } from "../models/user.js";
 const bot = new Telegraf(process.env.BOT_TOKEN);
-bot.use(session());
+bot.use(session({defaultSession:()=>({}), store: pgSessionStore }));
 
 // Register commands with Telegram so they show in the menu
 await bot.telegram.setMyCommands([
