@@ -9,7 +9,7 @@ export async function getUsersDueForReminder() {
             u.timezone,
             g.domain,
             g.surface_goal,
-            m.action_text AS mva
+            m.description AS mva
         FROM users u
         JOIN goals g ON g.user_id = u.id
         JOIN mvas m ON m.goal_id = g.id
