@@ -11,6 +11,20 @@ export function registerGlobalCommands(bot, stage) {
             ctx.wizard.state = {};
         }
 
+        // Layer A priority check: if a live session is already in-progress on the onboarding scene,
+        // let Telegraf's normal flow handle it (don't override with Layer B).
+        // WizardContextWizard stores step cursor at ctx.session.__scenes.cursor (internal state).
+        // If cursor > 0, the user is mid-scene and has live session state.
+        const hasLiveSession =
+            ctx.session?.__scenes?.current === "onboarding" &&
+            (ctx.session.__scenes.cursor ?? 0) > 0;
+        
+        if (hasLiveSession) {
+            // Live session exists; let the normal scene resumption flow continue.
+            // Return early so we don't enter again or trigger Layer B fallback.
+            return;
+        }
+
         const user = await getUserWithLatestPractice(ctx.from.id);
 
         // Highest priority: if user completed onboarding, show welcome-back menu (Layer A)
@@ -53,16 +67,21 @@ export function registerGlobalCommands(bot, stage) {
                 await ctx.reply(recapMsg);
                 
                 // Rehydrate wizard state with what we know
-                ctx.session.wizard = {
-                    state: resumeData.data,
-                    index: resumeData.step
-                };
+                const rehydratedState = resumeData.data;
+                const resumeStep = resumeData.step;
                 
-                // Enter the scene at the resume step
-                // TODO: Confirm Telegraf v4.16 WizardScene API for entering at specific step.
-                // Current assumption: the third parameter to enter() sets the initial index.
-                // If this doesn't work, may need to use state + middleware injection instead.
-                await ctx.scene.enter("onboarding", { initialIndex: resumeData.step });
+                // Set cursor before calling scene.enter().
+                // NOTE: This uses internal Telegraf state (ctx.session.__scenes.cursor).
+                // WizardContextWizard reads ctx.scene.session.cursor at construction time
+                // (line 31 of telegraf/scenes/wizard.js: ctx.scene.session.cursor ?? 0).
+                // We must set it *before* enter()'s middleware runs, which constructs the WizardContextWizard.
+                // Fallback if this breaks on a future Telegraf version: just restart from step 0
+                // with rehydrated state, which uses only public API (less seamless, but stable).
+                ctx.session ??= {};
+                ctx.session.__scenes ??= {};
+                ctx.session.__scenes.cursor = resumeStep;
+                
+                await ctx.scene.enter("onboarding", rehydratedState);
                 return;
             }
         }
