@@ -6,6 +6,7 @@ import { reflectIdentity } from "./reflectIdentity.js";
 import { registerGlobalCommands } from "./botCommand.js";
 import { saveOnboarding, updateReminderTime, saveOnboardingCheckpoint1, updateOnboardingStep, saveGoalCheckpoint, saveIdentityCheckpoint } from "../models/user.js";
 const bot = new Telegraf(process.env.BOT_TOKEN);
+await ensureSessionTable();// one-time, safe to run every boot — CREATE TABLE IF NOT EXISTS
 bot.use(session({defaultSession:()=>({}), store: pgSessionStore }));
 
 // Register commands with Telegram so they show in the menu
