@@ -1,5 +1,5 @@
 import { Markup } from "telegraf";
-import { getUserByTelegramId, getUserWithLatestPractice, updateReminderStatus, updateReminderTime } from "../models/user.js";
+import { getUserByTelegramId, getUserWithLatestPractice, updateReminderStatus, updateReminderTime, getResumeStepFromDb } from "../models/user.js";
 // src/config/commands.js
 export function registerGlobalCommands(bot, stage) {
 
@@ -13,11 +13,8 @@ export function registerGlobalCommands(bot, stage) {
 
         const user = await getUserWithLatestPractice(ctx.from.id);
 
-        if (!user) {
-            return await ctx.scene.enter("onboarding");
-        }
-
-        if (user.onboarding_complete) {
+        // Highest priority: if user completed onboarding, show welcome-back menu (Layer A)
+        if (user && user.onboarding_complete) {
             await ctx.reply(
                 `Hey ${user.name || "there"}, good to see you again 👋\n\n` +
                 `You're already set up:\n` +
@@ -34,9 +31,43 @@ export function registerGlobalCommands(bot, stage) {
             return;
         }
 
-        await ctx.reply(
-            `Looks like we got interrupted last time — let's pick back up.`
-        );
+        // If user is in the middle of onboarding (onboarding_complete = false),
+        // Layer B: check DB for step resume data as fallback
+        if (user && !user.onboarding_complete) {
+            const resumeData = await getResumeStepFromDb(ctx.from.id);
+            
+            if (resumeData && resumeData.data.name) {
+                // Build recap message from available data
+                let recapMsg = `Hey ${resumeData.data.name}, good to see you again 👋\n\n`;
+                recapMsg += `Let's pick up where we left off.\n\n`;
+                
+                if (resumeData.data.surfaceGoal) {
+                    recapMsg += `Last time you were working on: ${resumeData.data.surfaceGoal}\n\n`;
+                }
+                
+                if (resumeData.data.identityStatement) {
+                    recapMsg += `And we landed on this: ${resumeData.data.identityStatement}\n\n`;
+                }
+                
+                recapMsg += `Ready to continue?`;
+                await ctx.reply(recapMsg);
+                
+                // Rehydrate wizard state with what we know
+                ctx.session.wizard = {
+                    state: resumeData.data,
+                    index: resumeData.step
+                };
+                
+                // Enter the scene at the resume step
+                // TODO: Confirm Telegraf v4.16 WizardScene API for entering at specific step.
+                // Current assumption: the third parameter to enter() sets the initial index.
+                // If this doesn't work, may need to use state + middleware injection instead.
+                await ctx.scene.enter("onboarding", { initialIndex: resumeData.step });
+                return;
+            }
+        }
+        
+        // Brand new user or no resume data available
         return await ctx.scene.enter("onboarding");
     }
 

@@ -5,7 +5,7 @@ import {session} from "@telegraf/session";
 import { ensureSessionTable, pgSessionStore } from "../telegrafSessionStore.js";
 import { reflectIdentity } from "./reflectIdentity.js";
 import { registerGlobalCommands } from "./botCommand.js";
-import { saveOnboarding,updateReminderTime } from "../models/user.js";
+import { saveOnboarding, updateReminderTime, saveOnboardingCheckpoint1, updateOnboardingStep, saveGoalCheckpoint, saveIdentityCheckpoint } from "../models/user.js";
 const bot = new Telegraf(process.env.BOT_TOKEN);
 bot.use(session({defaultSession:()=>({}), store: pgSessionStore }));
 
@@ -206,6 +206,8 @@ export const onboardingScene = new Scenes.WizardScene(
     async function step1(ctx) {
         if (ctx.message?.text) {
             ctx.wizard.state.name = ctx.message.text;
+            // Layer B checkpoint: save name after step1 confirmation
+            await saveOnboardingCheckpoint1({ telegramId: ctx.from.id, name: ctx.wizard.state.name });
             await ctx.reply(
                 `Love that. Nice to meet you, ${ctx.wizard.state.name}.\n\n` +
                 `So — what part of your life do you most want to work on right now?`,
@@ -223,6 +225,8 @@ export const onboardingScene = new Scenes.WizardScene(
 
         if (ctx.callbackQuery.data === "name_yes") {
             ctx.wizard.state.name = ctx.from.first_name;
+            // Layer B checkpoint: save name after step1 confirmation
+            await saveOnboardingCheckpoint1({ telegramId: ctx.from.id, name: ctx.wizard.state.name });
             await ctx.reply(
                 `Nice to meet you, ${ctx.wizard.state.name}.\n\n` +
                 `So — what part of your life do you most want to work on right now?`,
@@ -243,6 +247,9 @@ export const onboardingScene = new Scenes.WizardScene(
 
         await ctx.answerCbQuery();
         ctx.wizard.state.domain = ctx.callbackQuery.data;
+        
+        // Layer B checkpoint: update step marker (domain is not durably stored yet)
+        await updateOnboardingStep(ctx.from.id, 3);
 
         // Health disclaimer nudge
         if (ctx.callbackQuery.data === "domain_health") {
@@ -267,6 +274,13 @@ export const onboardingScene = new Scenes.WizardScene(
         if (!ctx.message?.text) return;
 
         ctx.wizard.state.surfaceGoal = ctx.message.text;
+        
+        // Layer B checkpoint: create goals row now that we have domain + surface_goal
+        await saveGoalCheckpoint({
+            telegramId: ctx.from.id,
+            domain: ctx.wizard.state.domain,
+            surfaceGoal: ctx.wizard.state.surfaceGoal
+        });
 
         await ctx.reply(
             `Okay, I hear you.\n\nNow here's the important question — ` +
@@ -303,6 +317,7 @@ export const onboardingScene = new Scenes.WizardScene(
             console.error("AI reflection failed:", err);
             reflection=getRandomFallback(ctx.wizard.state.domain);
         }
+        ctx.wizard.state.generatedReflection = reflection;
         await ctx.reply(reflection)
         await ctx.reply(
             `Does that feel close to what you meant?`,
@@ -333,7 +348,17 @@ export const onboardingScene = new Scenes.WizardScene(
             );
             // In V1 we'll accept their text and move on
             // TODO: add a step here to receive free text identity statement
+            return;
         }
+
+        // User confirmed "Yes, exactly" — store the generated reflection as identity statement
+        ctx.wizard.state.identityStatement = ctx.wizard.state.generatedReflection;
+        
+        // Layer B checkpoint: save identity statement
+        await saveIdentityCheckpoint({
+            telegramId: ctx.from.id,
+            identityStatement: ctx.wizard.state.identityStatement
+        });
 
         const domain = ctx.wizard.state.domain || "domain_other";
         const suggestions = getRandomMvaSuggestions(domain);

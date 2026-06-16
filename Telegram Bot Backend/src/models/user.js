@@ -55,6 +55,15 @@ export async function saveOnboarding({ telegramId, name, domain, surfaceGoal, id
     await createMva({ goalId, description: mva })
     await completeOnboarding(userId)
     await updateReminderTime(userId, reminderTime)
+    // Layer B: mark as fully complete (step 8 signals end of onboarding)
+    try {
+        await pool.query(
+            `UPDATE users SET last_completed_step = 8 WHERE id = $1`,
+            [userId]
+        )
+    } catch (err) {
+        console.error("Failed to update last_completed_step to 8 for user_id", userId, err);
+    }
 }
 
 // Gets a user by telegram_id, returns the full row or null if not found
@@ -96,4 +105,146 @@ export async function updateReminderStatus(userId, newStatus) {
         `UPDATE users SET reminder_enabled = $1 WHERE id = $2`,
         [newStatus, userId]
     )
+}
+
+// Layer B Resume — checkpoint writes at specific steps
+
+// Upsert name after step1, mark as at step2
+export async function saveOnboardingCheckpoint1({ telegramId, name }) {
+    try {
+        await pool.query(
+            `INSERT INTO users (telegram_id, name, last_completed_step)
+             VALUES ($1, $2, 2)
+             ON CONFLICT (telegram_id) DO UPDATE
+               SET name = EXCLUDED.name, last_completed_step = 2`,
+            [telegramId, name]
+        )
+    } catch (err) {
+        console.error("Failed to save onboarding checkpoint step1 for telegram_id", telegramId, err);
+        // Don't throw — let the user continue; Layer A (session) is still primary
+    }
+}
+
+// Update step marker to step3 (domain selected, but not durably stored in DB yet)
+export async function updateOnboardingStep(telegramId, stepIndex) {
+    try {
+        await pool.query(
+            `UPDATE users SET last_completed_step = $1 WHERE telegram_id = $2`,
+            [stepIndex, telegramId]
+        )
+    } catch (err) {
+        console.error("Failed to update onboarding step for telegram_id", telegramId, err);
+        // Don't throw
+    }
+}
+
+// After step3, create goal row + update step to 4
+export async function saveGoalCheckpoint({ telegramId, domain, surfaceGoal }) {
+    try {
+        // Look up user_id by telegram_id
+        const userResult = await pool.query(
+            `SELECT id FROM users WHERE telegram_id = $1`,
+            [telegramId]
+        )
+        if (!userResult.rows[0]) {
+            console.error("No user found for telegram_id during goal checkpoint:", telegramId);
+            return;
+        }
+        const userId = userResult.rows[0].id;
+        
+        // Create goal row
+        await pool.query(
+            `INSERT INTO goals (user_id, domain, surface_goal, is_active)
+             VALUES ($1, $2, $3, true)`,
+            [userId, domain, surfaceGoal]
+        )
+        
+        // Update step marker
+        await pool.query(
+            `UPDATE users SET last_completed_step = 4 WHERE id = $1`,
+            [userId]
+        )
+    } catch (err) {
+        console.error("Failed to save goal checkpoint for telegram_id", telegramId, err);
+    }
+}
+
+// After step5, update identity_statement on latest goal + step to 6
+export async function saveIdentityCheckpoint({ telegramId, identityStatement }) {
+    try {
+        const userResult = await pool.query(
+            `SELECT id FROM users WHERE telegram_id = $1`,
+            [telegramId]
+        )
+        if (!userResult.rows[0]) {
+            console.error("No user found for telegram_id during identity checkpoint:", telegramId);
+            return;
+        }
+        const userId = userResult.rows[0].id;
+        
+        // Update latest goal's identity_statement
+        await pool.query(
+            `UPDATE goals 
+             SET identity_statement = $1 
+             WHERE user_id = $2 AND id = (
+                 SELECT id FROM goals WHERE user_id = $2 ORDER BY id DESC LIMIT 1
+             )`,
+            [identityStatement, userId]
+        )
+        
+        // Update step marker
+        await pool.query(
+            `UPDATE users SET last_completed_step = 6 WHERE id = $1`,
+            [userId]
+        )
+    } catch (err) {
+        console.error("Failed to save identity checkpoint for telegram_id", telegramId, err);
+    }
+}
+
+// Resume lookup — fetch user and latest goal/mva for Layer B fallback
+export async function getResumeStepFromDb(telegramId) {
+    try {
+        const result = await pool.query(
+            `SELECT 
+                u.id,
+                u.name,
+                u.last_completed_step,
+                u.onboarding_complete,
+                g.domain,
+                g.surface_goal,
+                g.identity_statement
+             FROM users u
+             LEFT JOIN LATERAL (
+                 SELECT * FROM goals WHERE user_id = u.id AND onboarding_complete IS NOT TRUE ORDER BY id DESC LIMIT 1
+             ) g ON true
+             WHERE u.telegram_id = $1`,
+            [telegramId]
+        )
+        
+        if (!result.rows[0]) {
+            return null; // Brand new user
+        }
+        
+        const user = result.rows[0];
+        
+        // If onboarding is already complete, don't use Layer B resume
+        // (Layer A /start handler will show the welcome-back menu instead)
+        if (user.onboarding_complete) {
+            return null;
+        }
+        
+        return {
+            step: user.last_completed_step,
+            data: {
+                name: user.name,
+                domain: user.domain,
+                surfaceGoal: user.surface_goal,
+                identityStatement: user.identity_statement,
+            }
+        };
+    } catch (err) {
+        console.error("Failed to get resume step from DB for telegram_id", telegramId, err);
+        return null;
+    }
 }
