@@ -378,6 +378,7 @@ export const onboardingScene = new Scenes.WizardScene(
         }
 
         ctx.wizard.state.mva = mva;
+        await ctx.reply(`Great choice. Consistency with that one small action is what's going to create real change for you.\n\nLet's set you up for success with a daily reminder. You can always change it later, or turn it off if it's not helpful — just tap /reminders anytime.\n\nSound good?`);
         await ctx.reply(
             `Last thing — what time should I check in with you each day?\n\n` +
             `Pick one below, or I'll default to 7pm.`,
@@ -399,7 +400,7 @@ export const onboardingScene = new Scenes.WizardScene(
         }
 
         await ctx.answerCbQuery();
-
+        console.log("Received reminder time selection:", ctx.callbackQuery.data);
         // Extract the time value from the callback e.g. "reminder_19:00" → "19:00"
         const reminderTime = ctx.callbackQuery.data.split("_")[1];
         ctx.wizard.state.reminderTime = reminderTime;
