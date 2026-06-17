@@ -64,23 +64,18 @@ export async function createMva({ goalId, description }) {
 // (i.e. a goal row belonging to a user whose onboarding_complete is false),
 // otherwise creates a new one. Never creates a second in-progress row for
 // the same user — always updates the existing one if found.
-export async function upsertInProgressGoal({ userId, domain, surfaceGoal, identityStatement }) {
-    // Look for an existing goal tied to this user while onboarding is incomplete.
-    // Reuse the parent user's onboarding_complete flag as the signal — no new
-    // columns needed, this mirrors the same logic already used in getResumeStepFromDb.
+export async function upsertDraftGoal({ userId, domain, surfaceGoal, identityStatement }) {
+    // Find or create a single draft goal for this user. Scoping is done by
+    // `goals.status = 'draft'` so the same function works for first-time
+    // onboarding and for later additional-goal flows — no dependence on
+    // `users.onboarding_complete` here.
     const existing = await pool.query(
-        `SELECT g.id FROM goals g
-         JOIN users u ON u.id = g.user_id
-         WHERE g.user_id = $1 AND u.onboarding_complete = false
-         ORDER BY g.id DESC LIMIT 1`,
+        `SELECT id FROM goals WHERE user_id = $1 AND status = 'draft' ORDER BY id DESC LIMIT 1`,
         [userId]
     )
 
     if (existing.rows[0]) {
         const goalId = existing.rows[0].id
-        // Update only the fields that were actually passed in (don't null out
-        // fields this particular checkpoint call doesn't know about yet).
-        // COALESCE ensures we only overwrite when a non-null value is provided.
         await pool.query(
             `UPDATE goals SET
                 domain = COALESCE($1, domain),
@@ -93,8 +88,8 @@ export async function upsertInProgressGoal({ userId, domain, surfaceGoal, identi
     }
 
     const result = await pool.query(
-        `INSERT INTO goals (user_id, domain, surface_goal, identity_statement, is_active)
-         VALUES ($1, $2, $3, $4, true)
+        `INSERT INTO goals (user_id, domain, surface_goal, identity_statement, status, is_active)
+         VALUES ($1, $2, $3, $4, 'draft', true)
          RETURNING id`,
         [userId, domain ?? null, surfaceGoal ?? null, identityStatement ?? null]
     )
@@ -109,16 +104,26 @@ export async function completeOnboarding(userId) {
     )
 }
 
+// Mark a draft goal as active once onboarding (or goal setup) completes.
+export async function activateGoal(goalId) {
+    await pool.query(
+        `UPDATE goals SET status = 'active' WHERE id = $1`,
+        [goalId]
+    )
+}
+
 // Saves everything from onboarding in the right order
 export async function saveOnboarding({ telegramId, name, domain, surfaceGoal, identityStatement, mva,reminderTime }) {
     const userId = await createUser({ telegramId, name })
-    // Ensure we reuse the same in-progress goal row created during step3/step5
-    // instead of inserting a duplicate. `upsertInProgressGoal` will return the
-    // existing in-progress goal id when present, or create one if not.
-    const goalId = await upsertInProgressGoal({ userId, domain, surfaceGoal, identityStatement })
-    // Create or update the MVA for that goal. `createMva` is now upsert-safe
-    // so retrying the final save won't produce duplicate MVA rows.
+    // Ensure we reuse the same draft goal row created during step3/step5
+    // instead of inserting a duplicate. `upsertDraftGoal` will return the
+    // existing draft goal id when present, or create one if not.
+    const goalId = await upsertDraftGoal({ userId, domain, surfaceGoal, identityStatement })
+    // Create or update the MVA for that goal. `createMva` is upsert-safe so
+    // retrying the final save won't produce duplicate MVA rows.
     await createMva({ goalId, description: mva })
+    // Activate the draft goal now that the full onboarding save succeeded.
+    await activateGoal(goalId)
     await completeOnboarding(userId)
     await updateReminderTime(userId, reminderTime)
     // Layer B: mark as fully complete (step 8 signals end of onboarding)
@@ -218,11 +223,11 @@ export async function saveGoalCheckpoint({ telegramId, domain, surfaceGoal }) {
         }
         const userId = userResult.rows[0].id;
         
-        // Create or update the single in-progress goal for this user.
-        // We scope by the parent user's `onboarding_complete = false` so that
-        // there is at most one in-progress goal row per user. COALESCE inside
-        // `upsertInProgressGoal` ensures fields not provided here are preserved.
-        await upsertInProgressGoal({ userId, domain, surfaceGoal })
+        // Create or update the single draft goal for this user. Scoping by
+        // `goals.status = 'draft'` (not the user's `onboarding_complete`) means
+        // this same logic works for first-time onboarding and later additional
+        // goal drafts.
+        await upsertDraftGoal({ userId, domain, surfaceGoal })
         
         // Update step marker
         await pool.query(
@@ -247,10 +252,10 @@ export async function saveIdentityCheckpoint({ telegramId, identityStatement }) 
         }
         const userId = userResult.rows[0].id;
         
-        // Update (or create-if-missing) the in-progress goal's identity_statement.
-        // Using `upsertInProgressGoal` ensures we operate on the same goal row
-        // scoped by `onboarding_complete = false` as other checkpoint code.
-        await upsertInProgressGoal({ userId, identityStatement })
+        // Update (or create-if-missing) the draft goal's identity_statement.
+        // Calling `upsertDraftGoal` centralizes the draft-finding logic so the
+        // same row is updated across checkpoints and the final save.
+        await upsertDraftGoal({ userId, identityStatement })
         
         // Update step marker
         await pool.query(
@@ -267,18 +272,17 @@ export async function getResumeStepFromDb(telegramId) {
     try {
         const result = await pool.query(
             `SELECT 
-                u.id,
-                u.name,
-                u.last_completed_step,
-                u.onboarding_complete,
-                g.domain,
-                g.surface_goal,
-                g.identity_statement
-             FROM users u
-             LEFT JOIN LATERAL (
-                 SELECT * FROM goals WHERE user_id = u.id AND onboarding_complete IS NOT TRUE ORDER BY id DESC LIMIT 1
-             ) g ON true
-             WHERE u.telegram_id = $1`,
+                    u.id,
+                    u.name,
+                    u.last_completed_step,
+                    g.domain,
+                    g.surface_goal,
+                    g.identity_statement
+                 FROM users u
+                 LEFT JOIN LATERAL (
+                     SELECT * FROM goals WHERE user_id = u.id AND status = 'draft' ORDER BY id DESC LIMIT 1
+                 ) g ON true
+                 WHERE u.telegram_id = $1`,
             [telegramId]
         )
         
@@ -288,11 +292,10 @@ export async function getResumeStepFromDb(telegramId) {
         
         const user = result.rows[0];
         
-        // If onboarding is already complete, don't use Layer B resume
-        // (Layer A /start handler will show the welcome-back menu instead)
-        if (user.onboarding_complete) {
-            return null;
-        }
+        // Layer B resume uses a goal draft (status='draft') so we don't rely
+        // on the user's `onboarding_complete` flag here. If a draft exists it
+        // should be returned regardless of whether the user previously
+        // completed onboarding (this supports adding additional goals later).
         
         return {
             step: user.last_completed_step,
