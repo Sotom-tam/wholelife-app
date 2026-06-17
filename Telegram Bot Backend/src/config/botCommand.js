@@ -223,24 +223,7 @@ export function registerGlobalCommands(bot, domainKeyboard) {
             domainKeyboard
         );
 
-        // Jump straight to step2 (domain selection) — skip step0/step1
-        // (greeting + name confirmation) since this user already exists
-        // and their name is already on file.
-        //
-        // NOTE: setting cursor on ctx.session.__scenes relies on Telegraf
-        // internals, same pattern already used for Layer B resume above.
-        // WizardContextWizard reads ctx.scene.session.cursor at construction
-        // time, so cursor must be set BEFORE scene.enter() runs. If this
-        // breaks on a future Telegraf upgrade, fallback is to enter at step 0
-        // with rehydrated state instead — less seamless, but uses only public API.
-        ctx.session ??= {};
-        ctx.session.__scenes = {
-            current: "onboarding",
-            state: { name: user.name },
-            cursor: 2,
-        };
-
-        await ctx.scene.enter("onboarding", { name: user.name });
+        await ctx.scene.enter("onboarding", { name: user.name ,resumeAtStep: 2});
     });
 }
 // ─── Reminders Change Scene ────────────────────────────────────────────────────────

@@ -182,6 +182,17 @@ export const onboardingScene = new Scenes.WizardScene(
 
     // STEP 0 — Random greeting + disclaimer + name check
     async function step0(ctx) {
+        // If we were entered with a resume target (e.g. from new_goal or Layer B
+        // resume), jump straight there instead of running the normal greeting.
+        if (ctx.wizard.state.resumeAtStep) {
+            const target = ctx.wizard.state.resumeAtStep;
+            delete ctx.wizard.state.resumeAtStep; // consume it, don't reapply on future enters
+            ctx.wizard.selectStep(target);
+            // Manually invoke the step we just selected, since selectStep alone
+            // doesn't execute it — it only moves the cursor.
+            return ctx.wizard.steps[target](ctx);
+        }
+
         await ctx.reply(randomGreeting());
 
         await ctx.reply(
