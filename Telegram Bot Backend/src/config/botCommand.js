@@ -25,15 +25,17 @@ export function registerGlobalCommands(bot, stage) {
             return;
         }
 
-        const user = await getUserWithLatestPractice(ctx.from.id);
+        const user = await getUserByTelegramId(ctx.from.id);
 
         // Highest priority: if user completed onboarding, show welcome-back menu (Layer A)
         if (user && user.onboarding_complete) {
+            // Fetch latest practice details for display in the menu
+            const latest = await getUserWithLatestPractice(ctx.from.id);
             await ctx.reply(
                 `Hey ${user.name || "there"}, good to see you again 👋\n\n` +
                 `You're already set up:\n` +
-                `🌱 Practice: ${user.mva || "Not set yet"}\n` +
-                `🔔 Check-in time: ${user.reminder_time || "7:00 PM"}\n\n` +
+                `🌱 Practice: ${latest?.mva || "Not set yet"}\n` +
+                `🔔 Check-in time: ${latest?.reminder_time || "7:00 PM"}\n\n` +
                 `Want to:`,
                 Markup.inlineKeyboard([
                     [Markup.button.callback("Start completely fresh", "confirm_restart")],
@@ -96,34 +98,8 @@ export function registerGlobalCommands(bot, stage) {
         await startOrResumeOnboarding(ctx);
     });
 
-    // ── /restart ───────────────────────────────────────────────────
-    bot.command("restart", async (ctx) => {
-        if (ctx.scene?.current) {
-            await ctx.scene.leave();
-        }
-        if (ctx.wizard) {
-            ctx.wizard.state = {};
-        }
-
-        const user = await getUserWithLatestPractice(ctx.from.id);
-
-        if (!user || !user.onboarding_complete) {
-            if (!user) {
-                await ctx.reply("Okay, starting fresh 🙂");
-            } else {
-                await ctx.reply("Looks like you didn't finish last time — let's pick up where you left off.");
-            }
-            return await ctx.scene.enter("onboarding");
-        }
-
-        await ctx.reply(
-            `Okay, starting fresh 🙂 Do you want to clear your current goal and practice for a new setup?`,
-            Markup.inlineKeyboard([
-                [Markup.button.callback("Yes, start fresh", "confirm_restart")],
-                [Markup.button.callback("No, keep what I have", "cancel_menu")],
-            ])
-        );
-    });
+    // `/restart` removed: start-fresh confirmation is handled via the
+    // welcome-back menu's "Start completely fresh" button -> `confirm_restart`.
 
     // ── /help ──────────────────────────────────────────────────────
     bot.command("help", async (ctx) => {
@@ -135,9 +111,8 @@ export function registerGlobalCommands(bot, stage) {
             `📖 /reflect — Weekly reflection\n` +
             `📈 /progress — See your 14-day progress\n` +
             `🆘 /support — Get help from a human\n` +
-            `🔄 /restart — Start over from the beginning\n\n` +
             `🔄 /reminders — Manage your check-in reminders\n\n` +
-            `If you ever feel stuck, just tap /restart and we'll go again.`
+            `If you ever feel stuck, just tap /start and we'll go again.`
         );
     });
     // ── /support ───────────────────────────────────────────────────
@@ -156,7 +131,7 @@ export function registerGlobalCommands(bot, stage) {
             `You can manage your check-in reminders here:\n\n` +
             `1️⃣ To turn reminders on or off, tap the button below.\n` +
             `2️⃣ To change the time of your reminder, tap the button below.\n\n` +
-            `If you ever want to start over, just tap /restart.`,
+            `If you ever want to start over, just tap /start.`,
             Markup.inlineKeyboard([
                 [Markup.button.callback("Toggle Reminder", "reminder_toggle")],
                 [Markup.button.callback("Change Time", "reminder_change")],
@@ -218,7 +193,7 @@ export function registerGlobalCommands(bot, stage) {
 
     bot.action("change_mva", async (ctx) => {
         await ctx.answerCbQuery();
-        await ctx.reply("MVA editing is coming soon. For now, tap /restart if you want to set a new one.");
+        await ctx.reply("MVA editing is coming soon. For now, tap /start if you want to set a new one.");
     });
 
     bot.action("cancel_menu", async (ctx) => {

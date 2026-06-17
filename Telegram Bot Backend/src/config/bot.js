@@ -12,7 +12,6 @@ bot.use(session({defaultSession:()=>({}), store: pgSessionStore }));
 // Register commands with Telegram so they show in the menu
 await bot.telegram.setMyCommands([
     { command: "start",    description: "Start or restart BecomingYou" },
-    { command: "restart",  description: "Start over from the beginning" },
     { command: "help",     description: "See what I can do" },
     { command: "support",  description: "Get help or send feedback" },
     { command: "checkin",  description: "Log today's practice" },
