@@ -41,7 +41,7 @@ export function registerGlobalCommands(bot, domainKeyboard) {
                 Markup.inlineKeyboard([
                     [Markup.button.callback("Start completely fresh", "confirm_restart")],
                     [Markup.button.callback("Change my check-in time", "reminder_change")],
-                    [Markup.button.callback("Add a new goal,", "new_goal")],
+                    [Markup.button.callback("Add a new goal", "new_goal")],
                     [Markup.button.callback("Change my daily practice", "change_mva")],
                     [Markup.button.callback("Nothing, just checking in", "cancel_menu")],
                 ])
@@ -202,6 +202,7 @@ export function registerGlobalCommands(bot, domainKeyboard) {
         await ctx.reply("No problem — I'm here when you're ready.");
     });
     bot.action("new_goal", async (ctx) => {
+        console.log("New goal action triggered");
         await ctx.answerCbQuery();
 
         const user = await getUserByTelegramId(ctx.from.id);
