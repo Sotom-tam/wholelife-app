@@ -38,6 +38,7 @@ export function registerGlobalCommands(bot, stage) {
                 Markup.inlineKeyboard([
                     [Markup.button.callback("Start completely fresh", "confirm_restart")],
                     [Markup.button.callback("Change my check-in time", "reminder_change")],
+                    [Markup.button.callback("Add a new goal,", "new_goal")],
                     [Markup.button.callback("Change my daily practice", "change_mva")],
                     [Markup.button.callback("Nothing, just checking in", "cancel_menu")],
                 ])

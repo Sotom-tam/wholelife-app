@@ -28,12 +28,75 @@ export async function createGoal({ userId, domain, surfaceGoal, identityStatemen
 }
 
 // Creates an MVA for a goal, returns the new mva's id
+// Upsert an MVA for a goal. If an MVA already exists for this goal (an
+// in-progress onboarding attempt), update it instead of inserting a new
+// row. This prevents duplicate MVAs when step7 (final save) is retried.
 export async function createMva({ goalId, description }) {
+    try {
+        const existing = await pool.query(
+            `SELECT id FROM mvas WHERE goal_id = $1 ORDER BY id DESC LIMIT 1`,
+            [goalId]
+        )
+
+        if (existing.rows[0]) {
+            const mvaId = existing.rows[0].id
+            await pool.query(
+                `UPDATE mvas SET description = COALESCE($1, description), is_active = true WHERE id = $2`,
+                [description ?? null, mvaId]
+            )
+            return mvaId
+        }
+
+        const result = await pool.query(
+            `INSERT INTO mvas (goal_id, description, is_active)
+             VALUES ($1, $2, true)
+             RETURNING id`,
+            [goalId, description]
+        )
+        return result.rows[0].id
+    } catch (err) {
+        console.error("createMva/upsert failed for goal_id", goalId, err)
+        throw err
+    }
+}
+
+// Returns the existing in-progress goal id for this user if one exists
+// (i.e. a goal row belonging to a user whose onboarding_complete is false),
+// otherwise creates a new one. Never creates a second in-progress row for
+// the same user — always updates the existing one if found.
+export async function upsertInProgressGoal({ userId, domain, surfaceGoal, identityStatement }) {
+    // Look for an existing goal tied to this user while onboarding is incomplete.
+    // Reuse the parent user's onboarding_complete flag as the signal — no new
+    // columns needed, this mirrors the same logic already used in getResumeStepFromDb.
+    const existing = await pool.query(
+        `SELECT g.id FROM goals g
+         JOIN users u ON u.id = g.user_id
+         WHERE g.user_id = $1 AND u.onboarding_complete = false
+         ORDER BY g.id DESC LIMIT 1`,
+        [userId]
+    )
+
+    if (existing.rows[0]) {
+        const goalId = existing.rows[0].id
+        // Update only the fields that were actually passed in (don't null out
+        // fields this particular checkpoint call doesn't know about yet).
+        // COALESCE ensures we only overwrite when a non-null value is provided.
+        await pool.query(
+            `UPDATE goals SET
+                domain = COALESCE($1, domain),
+                surface_goal = COALESCE($2, surface_goal),
+                identity_statement = COALESCE($3, identity_statement)
+             WHERE id = $4`,
+            [domain ?? null, surfaceGoal ?? null, identityStatement ?? null, goalId]
+        )
+        return goalId
+    }
+
     const result = await pool.query(
-        `INSERT INTO mvas (goal_id, description, is_active)
-         VALUES ($1, $2, true)
+        `INSERT INTO goals (user_id, domain, surface_goal, identity_statement, is_active)
+         VALUES ($1, $2, $3, $4, true)
          RETURNING id`,
-        [goalId, description]
+        [userId, domain ?? null, surfaceGoal ?? null, identityStatement ?? null]
     )
     return result.rows[0].id
 }
@@ -49,9 +112,12 @@ export async function completeOnboarding(userId) {
 // Saves everything from onboarding in the right order
 export async function saveOnboarding({ telegramId, name, domain, surfaceGoal, identityStatement, mva,reminderTime }) {
     const userId = await createUser({ telegramId, name })
-    // If this user already exists, we insert a fresh goal + MVA row rather than overwriting the old one.
-    // This keeps historical practice data intact while still letting them restart.
-    const goalId = await createGoal({ userId, domain, surfaceGoal, identityStatement })
+    // Ensure we reuse the same in-progress goal row created during step3/step5
+    // instead of inserting a duplicate. `upsertInProgressGoal` will return the
+    // existing in-progress goal id when present, or create one if not.
+    const goalId = await upsertInProgressGoal({ userId, domain, surfaceGoal, identityStatement })
+    // Create or update the MVA for that goal. `createMva` is now upsert-safe
+    // so retrying the final save won't produce duplicate MVA rows.
     await createMva({ goalId, description: mva })
     await completeOnboarding(userId)
     await updateReminderTime(userId, reminderTime)
@@ -152,12 +218,11 @@ export async function saveGoalCheckpoint({ telegramId, domain, surfaceGoal }) {
         }
         const userId = userResult.rows[0].id;
         
-        // Create goal row
-        await pool.query(
-            `INSERT INTO goals (user_id, domain, surface_goal, is_active)
-             VALUES ($1, $2, $3, true)`,
-            [userId, domain, surfaceGoal]
-        )
+        // Create or update the single in-progress goal for this user.
+        // We scope by the parent user's `onboarding_complete = false` so that
+        // there is at most one in-progress goal row per user. COALESCE inside
+        // `upsertInProgressGoal` ensures fields not provided here are preserved.
+        await upsertInProgressGoal({ userId, domain, surfaceGoal })
         
         // Update step marker
         await pool.query(
@@ -182,15 +247,10 @@ export async function saveIdentityCheckpoint({ telegramId, identityStatement }) 
         }
         const userId = userResult.rows[0].id;
         
-        // Update latest goal's identity_statement
-        await pool.query(
-            `UPDATE goals 
-             SET identity_statement = $1 
-             WHERE user_id = $2 AND id = (
-                 SELECT id FROM goals WHERE user_id = $2 ORDER BY id DESC LIMIT 1
-             )`,
-            [identityStatement, userId]
-        )
+        // Update (or create-if-missing) the in-progress goal's identity_statement.
+        // Using `upsertInProgressGoal` ensures we operate on the same goal row
+        // scoped by `onboarding_complete = false` as other checkpoint code.
+        await upsertInProgressGoal({ userId, identityStatement })
         
         // Update step marker
         await pool.query(

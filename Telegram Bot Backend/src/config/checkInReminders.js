@@ -6,6 +6,7 @@ import { sendCheckinMessage } from "./notifications.js";
 export function startCheckinCron(bot) {
     // Runs every minute
     cron.schedule("* * * * *", async () => {
+        console.log("Running checkin reminder cron job...");
         try {
             const users = await getUsersDueForReminder();
 
