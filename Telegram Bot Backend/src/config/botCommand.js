@@ -36,7 +36,7 @@ export function registerGlobalCommands(bot, domainKeyboard) {
             await ctx.reply(
                 `Hey ${user.name || "there"}, good to see you again 👋\n\n` +
                 `You're already set up:\n` +
-                `🌱 Practice: ${latest?.map((goal)=>{return goal.mva}).join(",\n") || "Not set yet"}\n` +
+                `🌱 Practice:\n${latest?.map((goal)=>{return goal.mva}).join(",\n") || "Not set yet"}\n` +
                 `🔔 Check-in time: ${latest?.reminder_time || "7:00 PM"}\n\n` +
                 `Want to:`,
                 Markup.inlineKeyboard([
