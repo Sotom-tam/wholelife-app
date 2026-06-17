@@ -557,6 +557,6 @@ bot.action("retry_reminder_step", async (ctx) => {
 
 
 //function in config/botCommands.js that registers all the bot built in commands
-registerGlobalCommands(bot)
+registerGlobalCommands(bot,domainKeyboard)
 
 export default bot;

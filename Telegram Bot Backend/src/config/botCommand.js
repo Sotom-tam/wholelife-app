@@ -1,7 +1,8 @@
 import { Markup } from "telegraf";
+
 import { getUserByTelegramId, getUserWithLatestPractice, updateReminderStatus, updateReminderTime, getResumeStepFromDb } from "../models/user.js";
 // src/config/commands.js
-export function registerGlobalCommands(bot, stage) {
+export function registerGlobalCommands(bot, domainKeyboard) {
 
     async function startOrResumeOnboarding(ctx) {
         if (ctx.scene?.current) {
@@ -200,5 +201,46 @@ export function registerGlobalCommands(bot, stage) {
         await ctx.answerCbQuery();
         await ctx.reply("No problem — I'm here when you're ready.");
     });
+    bot.action("new_goal", async (ctx) => {
+        await ctx.answerCbQuery();
+
+        const user = await getUserByTelegramId(ctx.from.id);
+        if (!user) {
+            // Defensive fallback — this action only appears on the welcome-back
+            // menu, which only existing users ever see.
+            await ctx.reply(`Let's get you set up first — tap /start to begin.`);
+            return;
+        }
+
+        if (ctx.scene?.current) {
+            await ctx.scene.leave();
+        }
+
+        await ctx.reply(
+            `Let's set up a new goal, ${user.name}. 🌱\n\n` +
+            `What part of your life do you want to work on this time?`,
+            domainKeyboard
+        );
+
+        // Jump straight to step2 (domain selection) — skip step0/step1
+        // (greeting + name confirmation) since this user already exists
+        // and their name is already on file.
+        //
+        // NOTE: setting cursor on ctx.session.__scenes relies on Telegraf
+        // internals, same pattern already used for Layer B resume above.
+        // WizardContextWizard reads ctx.scene.session.cursor at construction
+        // time, so cursor must be set BEFORE scene.enter() runs. If this
+        // breaks on a future Telegraf upgrade, fallback is to enter at step 0
+        // with rehydrated state instead — less seamless, but uses only public API.
+        ctx.session ??= {};
+        ctx.session.__scenes = {
+            current: "onboarding",
+            state: { name: user.name },
+            cursor: 2,
+        };
+
+        await ctx.scene.enter("onboarding", { name: user.name });
+    });
 }
 // ─── Reminders Change Scene ────────────────────────────────────────────────────────
+//is in bot.js, all scenes are defined in bot.js, and the reminder change scene is defined in src/scenes/reminderChangeScene.js. The reminder change scene handles the logic for changing the reminder time.
