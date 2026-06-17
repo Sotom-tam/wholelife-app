@@ -426,6 +426,23 @@ export const onboardingScene = new Scenes.WizardScene(
         }
 
         await ctx.answerCbQuery();
+
+        // Handle the retry button separately — it's not a time selection,
+        // it's a request to re-show the time picker so they can try again.
+        if (ctx.callbackQuery.data === "retry_reminder_step") {
+            await ctx.reply(
+                `No problem — pick a time and we'll try again:`,
+                Markup.inlineKeyboard([
+                    [Markup.button.callback("7:00 AM", "reminder_07:00")],
+                    [Markup.button.callback("12:00 PM", "reminder_12:00")],
+                    [Markup.button.callback("6:00 PM", "reminder_18:00")],
+                    [Markup.button.callback("7:00 PM (default)", "reminder_19:00")],
+                    [Markup.button.callback("9:00 PM", "reminder_21:00")],
+                ])
+            );
+            return; // stay on step7, wait for an actual time selection next
+        }
+
         console.log("Received reminder time selection:", ctx.callbackQuery.data);
         // Extract the time value from the callback e.g. "reminder_19:00" → "19:00"
         const reminderTime = ctx.callbackQuery.data.split("_")[1];
