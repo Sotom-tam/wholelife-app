@@ -159,7 +159,7 @@ export async function getUserWithLatestPractice(telegramId) {
          WHERE u.telegram_id = $1`,
         [telegramId]
     )
-    return result.rows[0] || null
+    return result.rows || null
 }
 
 // Updates the reminder_time for a user by id
