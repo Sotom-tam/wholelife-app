@@ -32,6 +32,7 @@ export function registerGlobalCommands(bot, domainKeyboard) {
         if (user && user.onboarding_complete) {
             // Fetch latest practice details for display in the menu
             const latest = await getUserWithLatestPractice(ctx.from.id);
+            console.log("Latest practice data for welcome-back menu:", latest);
             await ctx.reply(
                 `Hey ${user.name || "there"}, good to see you again 👋\n\n` +
                 `You're already set up:\n` +
