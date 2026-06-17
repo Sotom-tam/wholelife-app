@@ -151,10 +151,10 @@ export async function getUserWithLatestPractice(telegramId) {
         `SELECT u.*, g.domain, g.surface_goal, m.description AS mva
          FROM users u
          LEFT JOIN LATERAL (
-             SELECT * FROM goals WHERE user_id = u.id ORDER BY id DESC LIMIT 1
+             SELECT * FROM goals WHERE user_id = u.id ORDER BY id DESC
          ) g ON true
          LEFT JOIN LATERAL (
-             SELECT * FROM mvas WHERE goal_id = g.id ORDER BY id DESC LIMIT 1
+             SELECT * FROM mvas WHERE goal_id = g.id ORDER BY id DESC
          ) m ON true
          WHERE u.telegram_id = $1`,
         [telegramId]
