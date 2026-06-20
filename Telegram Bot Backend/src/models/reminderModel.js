@@ -7,19 +7,30 @@ export async function getUsersDueForReminder() {
             u.telegram_id,
             u.name,
             u.timezone,
+            (NOW() AT TIME ZONE u.timezone)::time AS current_time,
+            (NOW() AT TIME ZONE u.timezone)::date AS current_date,
             g.domain,
             g.surface_goal,
             m.description AS mva
         FROM users u
         JOIN goals g ON g.user_id = u.id
         JOIN mvas m ON m.goal_id = g.id
-        WHERE u.reminder_enabled = true
-          AND u.onboarding_complete = true
-          AND to_char(
-                NOW() AT TIME ZONE u.timezone,
-                'HH24:MI'
-              ) = to_char(u.reminder_time, 'HH24:MI')
-    `);
+        WHERE
+            u.reminder_enabled = true
+            AND u.onboarding_complete = true
+
+            -- reminder time has passed
+            AND (NOW() AT TIME ZONE u.timezone)::time >= u.reminder_time
+
+            -- today's reminder has not been sent yet
+            AND (
+                u.last_reminder_sent_at IS NULL
+                OR
+                (u.last_reminder_sent_at AT TIME ZONE u.timezone)::date
+                    <
+                (NOW() AT TIME ZONE u.timezone)::date
+            );
+        `);
     console.log("Users due for reminder:", result.rows);
     return result.rows;
 }
