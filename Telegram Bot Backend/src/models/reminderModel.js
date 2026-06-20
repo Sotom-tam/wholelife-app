@@ -34,3 +34,10 @@ export async function getUsersDueForReminder() {
     console.log("Users due for reminder:", result.rows);
     return result.rows;
 }
+
+export async function markReminderSent(telegramId) {
+    await pool.query(
+        `UPDATE users SET last_reminder_sent_at = NOW() WHERE telegram_id = $1`,
+        [telegramId]
+    );
+}

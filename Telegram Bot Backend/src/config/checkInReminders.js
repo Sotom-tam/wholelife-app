@@ -1,6 +1,6 @@
 // src/cron/checkinReminder.js
 import cron from "node-cron";
-import { getUsersDueForReminder } from "../models/reminderModel.js";
+import { getUsersDueForReminder,markReminderSent } from "../models/reminderModel.js";
 import { sendCheckinMessage } from "./notifications.js";
 
 export function startCheckinCron(bot) {
@@ -18,6 +18,7 @@ export function startCheckinCron(bot) {
                         user.name,
                         user.mva
                     );
+                    await markReminderSent(user.telegram_id);
                 } catch (err) {
                     // Log per-user failures without killing the whole cron tick
                     console.error(`Failed to send checkin to ${user.telegram_id}:`, err.message);
