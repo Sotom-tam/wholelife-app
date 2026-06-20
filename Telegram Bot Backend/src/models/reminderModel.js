@@ -20,5 +20,6 @@ export async function getUsersDueForReminder() {
                 'HH24:MI'
               ) = to_char(u.reminder_time, 'HH24:MI')
     `);
+    console.log("Users due for reminder:", result.rows);
     return result.rows;
 }
