@@ -1,4 +1,5 @@
 // src/bot/notifications.js
+import { Markup } from "telegraf";
 
 const checkinMessages = [
     (name, mva) => `Hey ${name} 👋 Time to show up for yourself. Did you get to: *${mva}* today?`,
