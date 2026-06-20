@@ -1,6 +1,8 @@
 import { Markup } from "telegraf";
 
 import { getUserByTelegramId, getUserWithLatestPractice, updateReminderStatus, updateReminderTime, getResumeStepFromDb } from "../models/user.js";
+import { recordCheckin } from "../models/checkinModel.js";
+import { getUserByTelegramId } from "../models/user.js";
 // src/config/commands.js
 export function registerGlobalCommands(bot, domainKeyboard) {
 
@@ -225,6 +227,94 @@ export function registerGlobalCommands(bot, domainKeyboard) {
         );
 
         await ctx.scene.enter("onboarding", { name: user.name ,resumeAtStep: 2});
+    });
+
+    bot.action(/^checkin_yes_(\d+)$/, async (ctx) => {
+        await ctx.answerCbQuery();
+        const mvaId = parseInt(ctx.match[1], 10);
+
+        let user;
+        try {
+            user = await getUserByTelegramId(ctx.from.id);
+        } catch (err) {
+            console.error("checkin_yes: failed to look up user", ctx.from.id, err);
+            await ctx.reply(`Something went wrong on my end — mind trying that again?`);
+            return;
+        }
+
+        if (!user) {
+            await ctx.reply(`I couldn't find your profile — try /start to set things up.`);
+            return;
+        }
+
+        try {
+            await recordCheckin({
+                mvaId,
+                userId: user.id,
+                completed: true,
+                timezone: user.timezone,
+            });
+        } catch (err) {
+            console.error("checkin_yes: failed to record checkin", { mvaId, userId: user.id }, err);
+            await ctx.reply(`Something went wrong saving that — can we try again?`);
+            return;
+        }
+
+        await ctx.reply(
+            `That's more evidence of who you're becoming. Your future self thanks you for the momentum. 🌱`,
+            {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: "+ Add a note", callback_data: `checkin_addnote_${mvaId}` }],
+                    ],
+                },
+            }
+        );
+    });
+
+    bot.action(/^checkin_no_(\d+)$/, async (ctx) => {
+        await ctx.answerCbQuery();
+        const mvaId = parseInt(ctx.match[1], 10);
+
+        let user;
+        try {
+            user = await getUserByTelegramId(ctx.from.id);
+        } catch (err) {
+            console.error("checkin_no: failed to look up user", ctx.from.id, err);
+            await ctx.reply(`Something went wrong on my end — mind trying that again?`);
+            return;
+        }
+
+        if (!user) {
+            await ctx.reply(`I couldn't find your profile — try /start to set things up.`);
+            return;
+        }
+
+        try {
+            await recordCheckin({
+                mvaId,
+                userId: user.id,
+                completed: false,
+                timezone: user.timezone,
+            });
+        } catch (err) {
+            console.error("checkin_no: failed to record checkin", { mvaId, userId: user.id }, err);
+            await ctx.reply(`Something went wrong saving that — can we try again?`);
+            return;
+        }
+
+        await ctx.reply(
+            `Acknowledged. What was the biggest point of friction today?`,
+            {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: "Skip", callback_data: `checkin_skipnote_${mvaId}` }],
+                    ],
+                },
+            }
+        );
+        // checkinNoteScene isn't built yet — this prompt displays, but a typed
+        // reply won't be captured until that scene exists. Next piece to build.
     });
 }
 // ─── Reminders Change Scene ────────────────────────────────────────────────────────

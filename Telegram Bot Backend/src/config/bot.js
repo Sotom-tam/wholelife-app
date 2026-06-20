@@ -513,7 +513,7 @@ export const reminderChangeScene = new Scenes.WizardScene("reminder_change",
         return ctx.wizard.next();
     },
     async function step1(ctx) {
-        if (!ctx.callbackQuery) {
+        if (!ctx.callbackQuery || !ctx.callbackQuery.data.startsWith("reminder_")) {
             await ctx.reply(`Just tap one of the time options above 😊`);
             return;
         }

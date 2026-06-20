@@ -1,4 +1,4 @@
-// src/db/reminderQueries.js
+// src/db/reminderModel.js
 import pool from "../../db.js";
 
 export async function getUsersDueForReminder() {

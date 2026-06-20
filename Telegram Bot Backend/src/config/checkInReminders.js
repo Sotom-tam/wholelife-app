@@ -1,4 +1,4 @@
-// src/cron/checkinReminder.js
+// src/config/checkinReminder.js
 import cron from "node-cron";
 import { getUsersDueForReminder,markReminderSent } from "../models/reminderModel.js";
 import { sendCheckinMessage } from "./notifications.js";

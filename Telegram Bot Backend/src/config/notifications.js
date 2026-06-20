@@ -1,4 +1,4 @@
-// src/bot/notifications.js
+// src/config/notifications.js
 import { Markup } from "telegraf";
 
 const checkinMessages = [
