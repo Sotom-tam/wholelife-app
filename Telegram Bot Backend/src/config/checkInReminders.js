@@ -16,7 +16,9 @@ export function startCheckinCron(bot) {
                         bot,
                         user.telegram_id,
                         user.name,
-                        user.mva
+                        user.mva,
+                        user.mva_id,
+                        user.current_date
                     );
                     await markReminderSent(user.telegram_id);
                 } catch (err) {

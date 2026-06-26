@@ -29,13 +29,20 @@ function getRandomCheckinMessage(name, mva) {
     const messageFn = getRandom(checkinMessages);
     return messageFn(name, mva);
 }
-export async function sendCheckinMessage(bot, telegramId, name, mva) {
+export async function sendCheckinMessage(bot, telegramId, name, mva, mvaId, today) {
     const text = getRandomCheckinMessage(name, mva);
+
+    // Ensure `today` is a YYYY-MM-DD string. Some pg configs may return
+    // strings already, others may return Date objects — normalize either way.
+    let todayStr = today;
+    if (today instanceof Date) {
+        todayStr = today.toISOString().slice(0, 10);
+    }
 
     const keyboard = Markup.inlineKeyboard([
         [
-            Markup.button.callback("✅ Yes", "checkin_yes"),
-            Markup.button.callback("❌ Not today", "checkin_no"),
+            Markup.button.callback("✅ Yes", `checkin_yes_${mvaId}_${todayStr}`),
+            Markup.button.callback("❌ Not today", `checkin_no_${mvaId}_${todayStr}`),
         ],
     ]);
 

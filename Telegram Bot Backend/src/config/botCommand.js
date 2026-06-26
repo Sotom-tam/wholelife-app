@@ -1,8 +1,8 @@
 import { Markup } from "telegraf";
 
 import { getUserByTelegramId, getUserWithLatestPractice, updateReminderStatus, updateReminderTime, getResumeStepFromDb } from "../models/user.js";
-import { recordCheckin } from "../models/checkinModel.js";
-import { getUserByTelegramId } from "../models/user.js";
+import { recordCheckin, getTodaysCheckin } from "../models/checkinModel.js";
+import { getTodayInTimezone } from "../utils/dateHelpers.js";
 // src/config/commands.js
 export function registerGlobalCommands(bot, domainKeyboard) {
 
@@ -229,9 +229,10 @@ export function registerGlobalCommands(bot, domainKeyboard) {
         await ctx.scene.enter("onboarding", { name: user.name ,resumeAtStep: 2});
     });
 
-    bot.action(/^checkin_yes_(\d+)$/, async (ctx) => {
+    bot.action(/^checkin_yes_(\d+)_(\d{4}-\d{2}-\d{2})$/, async (ctx) => {
         await ctx.answerCbQuery();
         const mvaId = parseInt(ctx.match[1], 10);
+        const messageDate = ctx.match[2];
 
         let user;
         try {
@@ -244,6 +245,40 @@ export function registerGlobalCommands(bot, domainKeyboard) {
 
         if (!user) {
             await ctx.reply(`I couldn't find your profile — try /start to set things up.`);
+            return;
+        }
+
+        const today = await getTodayInTimezone(user.timezone);
+
+        if (messageDate !== today) {
+            let todaysCheckin = null;
+            try {
+                todaysCheckin = await getTodaysCheckin(mvaId, user.timezone);
+            } catch (err) {
+                console.error("checkin_yes: failed to check today's status", { mvaId }, err);
+                todaysCheckin = null;
+            }
+
+            if (todaysCheckin) {
+                await ctx.reply(
+                    `That check-in was for ${messageDate} — already past. Looks like today's already logged though, so you're good. 👍`
+                );
+                return;
+            }
+
+            await ctx.reply(
+                `That check-in was for ${messageDate} — a little stale now, so I won't log it against today.`,
+                {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                { text: "✅ Yes", callback_data: `checkin_yes_${mvaId}_${today}` },
+                                { text: "❌ Not today", callback_data: `checkin_no_${mvaId}_${today}` },
+                            ],
+                        ],
+                    },
+                }
+            );
             return;
         }
 
@@ -272,9 +307,10 @@ export function registerGlobalCommands(bot, domainKeyboard) {
         );
     });
 
-    bot.action(/^checkin_no_(\d+)$/, async (ctx) => {
+    bot.action(/^checkin_no_(\d+)_(\d{4}-\d{2}-\d{2})$/, async (ctx) => {
         await ctx.answerCbQuery();
         const mvaId = parseInt(ctx.match[1], 10);
+        const messageDate = ctx.match[2];
 
         let user;
         try {
@@ -287,6 +323,40 @@ export function registerGlobalCommands(bot, domainKeyboard) {
 
         if (!user) {
             await ctx.reply(`I couldn't find your profile — try /start to set things up.`);
+            return;
+        }
+
+        const today = await getTodayInTimezone(user.timezone);
+
+        if (messageDate !== today) {
+            let todaysCheckin = null;
+            try {
+                todaysCheckin = await getTodaysCheckin(mvaId, user.timezone);
+            } catch (err) {
+                console.error("checkin_no: failed to check today's status", { mvaId }, err);
+                todaysCheckin = null;
+            }
+
+            if (todaysCheckin) {
+                await ctx.reply(
+                    `That check-in was for ${messageDate} — already past. Looks like today's already logged though, so you're good. 👍`
+                );
+                return;
+            }
+
+            await ctx.reply(
+                `That check-in was for ${messageDate} — a little stale now, so I won't log it against today.`,
+                {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                { text: "✅ Yes", callback_data: `checkin_yes_${mvaId}_${today}` },
+                                { text: "❌ Not today", callback_data: `checkin_no_${mvaId}_${today}` },
+                            ],
+                        ],
+                    },
+                }
+            );
             return;
         }
 

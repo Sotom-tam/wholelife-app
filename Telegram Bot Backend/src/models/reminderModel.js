@@ -11,7 +11,8 @@ export async function getUsersDueForReminder() {
             (NOW() AT TIME ZONE u.timezone)::date AS current_date,
             g.domain,
             g.surface_goal,
-            m.description AS mva
+            m.description AS mva,
+            m.id AS mva_id
         FROM users u
         JOIN goals g ON g.user_id = u.id
         JOIN mvas m ON m.goal_id = g.id
