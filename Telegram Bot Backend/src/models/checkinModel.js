@@ -14,3 +14,14 @@ export async function recordCheckin({ mvaId, userId, completed, note = null, tim
     );
     return result.rows[0];
 }
+
+export async function getTodaysCheckin(mvaId, timezone) {
+    const result = await pool.query(
+        `SELECT id, user_id, mva_id, checked_in_on, completed, note
+         FROM checkins
+         WHERE mva_id = $1
+           AND checked_in_on = (NOW() AT TIME ZONE $2)::date`,
+        [mvaId, timezone]
+    );
+    return result.rows[0] ?? null;
+}
