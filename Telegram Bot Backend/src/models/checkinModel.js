@@ -1,3 +1,4 @@
+import pool from "../../db.js"
 export async function recordCheckin({ mvaId, userId, completed, note = null, timezone }) {
     const result = await pool.query(
         `
