@@ -254,7 +254,9 @@ export const onboardingScene = new Scenes.WizardScene(
             await ctx.reply(`Just pick one of the options above — no wrong answers here 😊`);
             return;
         }
-
+        if (!ctx.callbackQuery.data.startsWith("domain_")) {
+            return next();
+        }
         await ctx.answerCbQuery();
         ctx.wizard.state.domain = ctx.callbackQuery.data;
         
@@ -341,10 +343,14 @@ export const onboardingScene = new Scenes.WizardScene(
     },
 
     // STEP 5 — Confirm identity, suggest MVAs
-    async function step5(ctx) {
+    async function step5(ctx, next) {
         if (!ctx.callbackQuery) {
             await ctx.reply(`Just tap one of the options above 😊`);
             return;
+        }
+
+        if (!["identity_yes", "identity_no"].includes(ctx.callbackQuery.data)) {
+            return next();
         }
 
         await ctx.answerCbQuery();
@@ -391,8 +397,12 @@ export const onboardingScene = new Scenes.WizardScene(
     },
 
     // STEP 6 — Receive MVA choice, show summary
-    async function step6(ctx) {
+    async function step6(ctx, next) {
         if (!ctx.callbackQuery && !ctx.message?.text) return;
+
+        if (ctx.callbackQuery && !ctx.callbackQuery.data.startsWith("mva_")) {
+            return next();
+        }
 
         const domain = ctx.wizard.state.domain || "domain_other";
         const suggestions = ctx.wizard.state.currentSuggestions;
@@ -429,10 +439,17 @@ export const onboardingScene = new Scenes.WizardScene(
         return ctx.wizard.next();
     },
     // STEP 7 — Receive reminder time, save everything, show summary
-    async function step7(ctx) {
+    async function step7(ctx, next) {
         if (!ctx.callbackQuery) {
             await ctx.reply(`Just tap one of the time options above 😊`);
             return;
+        }
+
+        if (
+            !ctx.callbackQuery.data.startsWith("reminder_") &&
+            ctx.callbackQuery.data !== "retry_reminder_step"
+        ) {
+            return next();
         }
 
         await ctx.answerCbQuery();
@@ -512,11 +529,16 @@ export const reminderChangeScene = new Scenes.WizardScene("reminder_change",
         )
         return ctx.wizard.next();
     },
-    async function step1(ctx) {
-        if (!ctx.callbackQuery || !ctx.callbackQuery.data.startsWith("reminder_")) {
+    async function step1(ctx, next) {
+        if (!ctx.callbackQuery) {
             await ctx.reply(`Just tap one of the time options above 😊`);
             return;
         }
+
+        if (!ctx.callbackQuery.data.startsWith("reminder_")) {
+            return next();
+        }
+
         await ctx.answerCbQuery();
         const reminderTime = ctx.callbackQuery.data.split("_")[1];
         const userId = ctx.from.id
