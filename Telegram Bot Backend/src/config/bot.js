@@ -213,7 +213,7 @@ export const onboardingScene = new Scenes.WizardScene(
     },
 
     // STEP 1 — Confirm name, pick life domain
-    async function step1(ctx) {
+    async function step1(ctx, next) {
         if (ctx.message?.text) {
             ctx.wizard.state.name = ctx.message.text;
             // Layer B checkpoint: save name after step1 confirmation
@@ -230,7 +230,9 @@ export const onboardingScene = new Scenes.WizardScene(
             await ctx.reply(`Just tap Yes or No above — I'll wait 😊`);
             return;
         }
-
+        if (!ctx.callbackQuery.data.startsWith("name_")) {
+            return next();
+        }
         await ctx.answerCbQuery();
 
         if (ctx.callbackQuery.data === "name_yes") {
@@ -249,7 +251,7 @@ export const onboardingScene = new Scenes.WizardScene(
     },
 
     // STEP 2 — Receive domain, health disclaimer if needed, ask surface goal
-    async function step2(ctx) {
+    async function step2(ctx, next) {
         if (!ctx.callbackQuery) {
             await ctx.reply(`Just pick one of the options above — no wrong answers here 😊`);
             return;
